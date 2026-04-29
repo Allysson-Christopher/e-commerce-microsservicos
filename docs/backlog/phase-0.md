@@ -553,14 +553,19 @@ Depende de E + B + C.
     - `ansible-quickstart.md`
 - **Dependências:** —
 
-### P0-I3 — ADR template e ADRs iniciais (M)
+### P0-I3 — ADR template + ADRs antecipadas (M)
 
 - **DoD:**
-  - `docs/adr/template.md` (Michael Nygard format)
-  - ADRs criados (próxima etapa do plano de próximos passos)
-  - Index `docs/adr/README.md` listando ADRs
+  - `docs/adr/template.md` no formato Michael Nygard (ver `CLAUDE.md` §"ADRs — leia antes de decidir algo arquitetural" para a estrutura obrigatória)
+  - `docs/adr/README.md` como índice (status, data, link) e descrevendo a política deste repo: ADR nasce junto com a implementação no PR da tarefa; lote inicial é exceção controlada
+  - **ADRs antecipadas em lote** (decisões já tomadas no brief e/ou já em uso desde o primeiro commit):
+    - `ADR-0000` — Como usamos ADRs neste projeto (meta-processo)
+    - `ADR-0001` — Adotar monorepo único poliglota (refs §4.1)
+    - `ADR-0002` — Conventional Commits com scope obrigatório + body-required-when-typed (refs §5.1; já em uso desde P0-A4)
+    - `ADR-0003` — Trunk-based development com squash merge (refs §5.2)
+    - `ADR-0004` — Versionamento independente por serviço com release-please (refs §5.1)
 - **Dependências:** —
-- **Nota:** essa tarefa é o **passo 2 do plano de próximos passos** (após este backlog). Inserida aqui como placeholder.
+- **Nota:** demais ADRs **não** são criadas aqui. Cada uma nasce no PR da tarefa que toma a decisão correspondente — ex.: `ADR-0005` (VPS Hostinger única) sai junto com P0-C\*; `ADR-0006` (Ansible + OpenTofu) com P0-C1/D1; `ADR-0007` (Cloudflare + Traefik + AOP) com P0-D2/D3/D4; `ADR-0008` (linguagem do hello-service) é o próprio DoD da P0-E1; `ADR-0009` (LGTM + OTel) com P0-G1; e assim por diante. Lista completa de candidatas e em qual tarefa cada uma deve nascer fica versionada em `docs/adr/README.md`.
 
 ### P0-I4 — Reflexão de fim de fase (S)
 

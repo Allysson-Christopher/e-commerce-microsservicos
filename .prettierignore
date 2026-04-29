@@ -1,0 +1,21 @@
+# Files Prettier should NOT touch
+node_modules/
+package-lock.json
+.husky/_/
+dist/
+build/
+target/
+out/
+.next/
+coverage/
+
+# Generated / vendored
+*.min.js
+*.min.css
+contracts/proto/**/gen/
+
+# Brief and large source documents — preserve manual formatting
+PROJECT_BRIEF.md
+
+# License headers and template files
+LICENSE

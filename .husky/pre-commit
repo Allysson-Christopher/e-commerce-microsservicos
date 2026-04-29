@@ -1,2 +1,24 @@
-# Pre-commit hook — currently a no-op.
-# Linters and gitleaks are added in P0-A5.
+#!/usr/bin/env sh
+#
+# pre-commit hook
+#
+# Runs:
+#   1. lint-staged  — Prettier on staged files (md, yml, json, js/ts, css, html)
+#   2. gitleaks     — secret scan on staged content
+#
+# Both must pass for the commit to proceed. Do NOT bypass with --no-verify;
+# fix the underlying issue or update the corresponding config (see CLAUDE.md).
+
+set -e
+
+# 1) Format staged files in place.
+npx --no -- lint-staged
+
+# 2) Scan staged content for secrets. Requires gitleaks on PATH.
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "✖ gitleaks not found on PATH." >&2
+  echo "  Run ./tools/install-dev-tools.sh to install (see docs/contributing/local-setup.md)." >&2
+  exit 1
+fi
+
+gitleaks protect --staged --redact --config .gitleaks.toml --verbose

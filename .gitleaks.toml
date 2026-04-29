@@ -1,0 +1,46 @@
+# gitleaks configuration
+#
+# Extends the upstream default ruleset and adds project-specific allowlists
+# for documentation placeholders that are NOT real secrets. Keep allowlists
+# narrow — every entry is a hole in the secret-leak detection net.
+#
+# Layout:
+#   - Inherit defaults from gitleaks (bundled, no path needed)
+#   - Add an `[allowlist]` block with regexes / paths that are safe
+#
+# To test locally:
+#   gitleaks detect --source . --config .gitleaks.toml --no-git --verbose
+#   gitleaks protect --staged --config .gitleaks.toml --verbose
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Project-specific allowlist (placeholders, fixtures, docs)"
+
+# Paths that should never be scanned — keep this list short and intentional.
+paths = [
+  '''(?i)(^|/)\.gitleaks\.toml$''',
+  '''(?i)(^|/)package-lock\.json$''',
+  '''(?i)(^|/)go\.sum$''',
+  '''(?i)(^|/)PROJECT_BRIEF\.md$''',
+  '''(?i)(^|/)docs/contributing/commits\.md$''',
+  '''(?i)(^|/)docs/.*example.*''',
+]
+
+# Inline regexes for content that *looks* like a secret but is a placeholder.
+# Only add entries that are unambiguous (long, distinctive strings).
+regexes = [
+  # Documentation placeholders explicitly written as ALL CAPS examples.
+  '''(?i)<your[-_ ]?(api[-_ ]?)?key[-_ ]?here>''',
+  '''(?i)<insert[-_ ](secret|token)[-_ ]here>''',
+  '''(?i)example[-_]?(api[-_]?)?(key|token|secret)''',
+  # Stripe test keys are public sandbox keys — never real.
+  '''sk_test_[A-Za-z0-9]{24,}''',
+  '''pk_test_[A-Za-z0-9]{24,}''',
+  # GitHub Actions example placeholder used in workflows
+  '''\$\{\{\s*secrets\.[A-Z_]+\s*\}\}''',
+]
+
+# Specific commits whose content is safe (rarely needed; prefer fixing).
+# commits = []

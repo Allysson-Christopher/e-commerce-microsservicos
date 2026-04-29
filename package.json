@@ -12,5 +12,13 @@
     "node": ">=24.15.0",
     "npm": ">=11.0.0"
   },
-  "packageManager": "npm@11.13.0"
+  "packageManager": "npm@11.13.0",
+  "devDependencies": {
+    "@commitlint/cli": "20.5.2",
+    "@commitlint/config-conventional": "20.5.0",
+    "husky": "9.1.7"
+  },
+  "scripts": {
+    "prepare": "husky"
+  }
 }

@@ -1,0 +1,4 @@
+go 1.26
+
+// Go modules will be added here when the api-gateway (Go BFF) is created.
+// See PROJECT_BRIEF.md §3.1 and §3.4.

@@ -1,0 +1,16 @@
+{
+  "name": "ecommerce-microsservicos",
+  "version": "0.0.0",
+  "private": true,
+  "description": "E-commerce microsserviços — monorepo poliglota (Java, Node/TS, Go).",
+  "license": "MIT",
+  "workspaces": [
+    "services/*",
+    "frontend/*"
+  ],
+  "engines": {
+    "node": ">=24.15.0",
+    "npm": ">=11.0.0"
+  },
+  "packageManager": "npm@11.13.0"
+}

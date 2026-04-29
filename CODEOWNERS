@@ -1,0 +1,9 @@
+# CODEOWNERS — referência futura
+#
+# Sintaxe: <pattern> <owner1> [<owner2> ...]
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-policies/about-code-owners
+#
+# Owner solo no momento. Quando o time crescer, dividir por área de domínio
+# (ex.: services/order-service/ ao squad responsável por pedidos).
+
+* @allyssoncsf

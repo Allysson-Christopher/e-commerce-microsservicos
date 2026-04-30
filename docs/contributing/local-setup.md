@@ -109,8 +109,16 @@ git switch -c feat/<scope>-<slug>
 git push -u origin feat/<scope>-<slug>
 gh pr create --fill
 # revisa o próprio diff
-gh pr merge --squash --delete-branch
+gh pr merge --squash
+git switch main && git pull --ff-only
 ```
+
+> **Não use `--delete-branch`** no `gh pr merge`. O repo está configurado com
+> `delete_branch_on_merge=true`, então o GitHub deleta a branch remota
+> automaticamente no merge; a flag tenta deletar de novo e falha com 404
+> (cosmético, mas faz `gh` sair com exit code 1). A branch local é apagada
+> pelo próprio `gh pr merge` ao voltar pra `main`. Se algum dia o repo perder
+> o `delete_branch_on_merge=true`, daí sim re-incluir a flag.
 
 ## Quando algo dá errado
 

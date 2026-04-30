@@ -49,7 +49,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       echo "    1. Create a feature branch:  git switch -c feat/<scope>-<slug>" >&2
       echo "    2. Push the branch:          git push -u origin <branch>" >&2
       echo "    3. Open a PR:                gh pr create --fill" >&2
-      echo "    4. Squash-merge the PR:      gh pr merge --squash --delete-branch" >&2
+      echo "    4. Squash-merge the PR:      gh pr merge --squash" >&2
       echo "" >&2
       echo "  Bypass (only if you really know what you're doing):" >&2
       echo "    git push --no-verify ${REMOTE_NAME} ${PROTECTED_BRANCH}" >&2

@@ -78,7 +78,38 @@ git commit -m "test(repo): smoke" # vai rejeitar (test exige scope conhecido + b
 │   │                                                         │
 │   └─ commit-msg hook (.husky/commit-msg)                    │
 │         └─ commitlint         → valida Conventional Commits │
+│                                                             │
+│ git push                                                    │
+│   │                                                         │
+│   └─ pre-push hook (.husky/pre-push)                        │
+│         └─ bloqueia push direto em `main` (ADR-0005)        │
 └─────────────────────────────────────────────────────────────┘
+```
+
+### Sobre o pre-push hook
+
+Esse hook bloqueia `git push` direto na branch `main` desta máquina e te orienta
+a abrir um Pull Request. Existe porque o **GitHub Free não permite branch
+protection server-side em repositórios privados** (precisa GitHub Pro/Team ou
+repo público) — então a regra "muda em main só via PR" é enforced
+client-side via husky. Decisão completa em
+[`docs/adr/ADR-0005`](../adr/ADR-0005-protecao-main-via-hook-local-em-github-free-privado.md).
+
+**É um tripwire, não enforcement real.** Pode ser contornado com
+`git push --no-verify`, push de outra máquina, ou chamadas diretas à API do
+GitHub. Não conte com ele para garantir que `main` é intocável — a disciplina
+é sua. Quando o repo virar público ou o plano subir para Pro, ativamos
+proteção server-side por cima e o hook continua útil como atalho local.
+
+**Fluxo correto** (substitui `git push origin main` direto):
+
+```bash
+git switch -c feat/<scope>-<slug>
+# trabalha, commita
+git push -u origin feat/<scope>-<slug>
+gh pr create --fill
+# revisa o próprio diff
+gh pr merge --squash --delete-branch
 ```
 
 ## Quando algo dá errado

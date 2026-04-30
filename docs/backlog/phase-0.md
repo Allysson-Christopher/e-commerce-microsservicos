@@ -102,21 +102,26 @@ Sem dependências externas — pode iniciar imediatamente.
 
 [paralelizável com Grupo A]
 
-### P0-B1 — Configurar repositório no GitHub (S)
+### P0-B1 — Configurar repositório no GitHub (S) 🟡 parcial
 
-- **DoD:**
-  - Repositório criado (privado ou público — decidir)
-  - Push do estado atual
-  - **Branch protection** em `main`:
-    - Exigir PR
-    - Exigir CI verde (status checks; nomes a definir após Grupo F)
-    - Apenas **squash merge** habilitado
-    - Exigir histórico linear
-    - Sem push direto, sem force push
-  - **Environments** criados:
-    - `staging` (sem reviewers)
-    - `production` (com **required reviewers** = você como aprovador, simulando approval gate)
+- **Status:** parcialmente concluído em 2026-04-30. Repo criado e proteção client-side ativa; falta config de merge no GitHub e Environments.
+- **DoD original (e o que foi efetivamente feito):**
+  - [x] Repositório criado — `Allysson-Christopher/e-commerce-microsservicos`, **privado**
+  - [x] Push do estado atual — `main` em `origin/main`
+  - [⚠️] **Branch protection** em `main` — **substituída por proteção client-side** (ver ADR-0005):
+    - [x] Exigir PR — enforced via `.husky/pre-push` (tripwire local)
+    - [ ] Exigir CI verde — pendente do Grupo F (mesmo no caminho server-side seria adiado)
+    - [ ] Apenas **squash merge** habilitado — config server-side; pendente até ter plano pago/público
+    - [x] Exigir histórico linear — política preservada (squash via `gh pr merge --squash`); enforcement server-side pendente
+    - [x] Sem push direto, sem force push em main — enforced client-side via `.husky/pre-push`
+  - [ ] **Environments** `staging` (sem reviewers) e `production` (com required reviewers) — pendente; próximo passo desta tarefa
 - **Dependências:** P0-A1
+- **Notas de execução:**
+  - **Bloqueio descoberto:** GitHub Free **não permite** branch protection nem rulesets em repos privados (HTTP 403 "Upgrade to GitHub Pro or make this repository public"). Decisão consciente de manter privado e gratuito → adotamos hook local como fallback.
+  - **ADR-0005** registra a decisão completa (com alternativas descartadas: tornar público, GitHub Pro, adiar). Hook em `.husky/pre-push`, doc em `docs/contributing/local-setup.md`.
+  - Hook é **tripwire client-side**, não enforcement real — bypass-able com `--no-verify`, push de outra máquina, ou API. Disciplina humana continua sendo o gate principal.
+  - **Migração futura:** quando tornarmos o repo público OU subirmos pra Pro/Team OU migrarmos pra org paga, ativar branch protection (ou rulesets) server-side por cima — hook continua útil como atalho local.
+  - Auto-merge, squash-only, delete-branch-on-merge serão configurados via `gh repo edit` no próximo passo (não dependem de plano pago — são toggles do repo).
 
 ### P0-B2 — Cloudflare: zona DNS e configuração base (M)
 

@@ -24,13 +24,14 @@ exceção controlada — registra decisões já em uso desde o primeiro commit.
 
 ## Índice
 
-| ADR                                                               | Título                                                                | Status   | Data       | Tags                                |
-| ----------------------------------------------------------------- | --------------------------------------------------------------------- | -------- | ---------- | ----------------------------------- |
-| [0000](ADR-0000-como-usamos-adrs.md)                              | Como usamos ADRs neste projeto                                        | accepted | 2026-04-29 | meta, processo, documentação        |
-| [0001](ADR-0001-monorepo-unico-poliglota.md)                      | Adotar monorepo único poliglota                                       | accepted | 2026-04-29 | repo, estrutura, ci-cd, contracts   |
-| [0002](ADR-0002-conventional-commits-com-scope-obrigatorio.md)    | Conventional Commits com scope obrigatório e body-required-when-typed | accepted | 2026-04-29 | repo, ci, processo, contributing    |
-| [0003](ADR-0003-trunk-based-development-com-squash-merge.md)      | Trunk-based development com squash merge                              | accepted | 2026-04-29 | repo, ci-cd, processo, contributing |
-| [0004](ADR-0004-versionamento-independente-com-release-please.md) | Versionamento independente por serviço com release-please             | accepted | 2026-04-29 | ci-cd, release, repo, contributing  |
+| ADR                                                                     | Título                                                                | Status   | Data       | Tags                                |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------- | -------- | ---------- | ----------------------------------- |
+| [0000](ADR-0000-como-usamos-adrs.md)                                    | Como usamos ADRs neste projeto                                        | accepted | 2026-04-29 | meta, processo, documentação        |
+| [0001](ADR-0001-monorepo-unico-poliglota.md)                            | Adotar monorepo único poliglota                                       | accepted | 2026-04-29 | repo, estrutura, ci-cd, contracts   |
+| [0002](ADR-0002-conventional-commits-com-scope-obrigatorio.md)          | Conventional Commits com scope obrigatório e body-required-when-typed | accepted | 2026-04-29 | repo, ci, processo, contributing    |
+| [0003](ADR-0003-trunk-based-development-com-squash-merge.md)            | Trunk-based development com squash merge                              | accepted | 2026-04-29 | repo, ci-cd, processo, contributing |
+| [0004](ADR-0004-versionamento-independente-com-release-please.md)       | Versionamento independente por serviço com release-please             | accepted | 2026-04-29 | ci-cd, release, repo, contributing  |
+| [0005](ADR-0005-protecao-main-via-hook-local-em-github-free-privado.md) | Proteção da branch `main` via hook local em GitHub Free privado       | accepted | 2026-04-30 | repo, ci-cd, security, contributing |
 
 ## ADRs candidatas (a nascerem nas tarefas correspondentes)
 
@@ -45,13 +46,13 @@ mudança de política. Atualizar conforme novas tarefas forem identificadas.
 
 | ADR (provável) | Decisão                                                                                         | Refs do brief | Tarefa do backlog         |
 | -------------- | ----------------------------------------------------------------------------------------------- | ------------- | ------------------------- |
-| 0005           | VPS Hostinger única para staging + prod com isolamento via Docker networks                      | §5.4          | P0-C1 a P0-C5             |
-| 0006           | Ansible para configuração de VPS + OpenTofu para Cloudflare                                     | §5.5          | P0-C2, P0-D1              |
-| 0007           | Cloudflare proxied + Traefik + Let's Encrypt + mTLS origin (Authenticated Origin Pulls)         | §7.2          | P0-D2 a P0-D4             |
-| 0008           | Linguagem do hello-service                                                                      | §9, P0-E1     | **P0-E1 (DoD da tarefa)** |
-| 0009           | Stack de observabilidade Grafana LGTM + OpenTelemetry                                           | §6.1          | P0-G1                     |
-| 0010           | DevSecOps stack: Semgrep + Trivy + gitleaks + Checkov + SonarCloud (cosign + SBOM desde Fase 1) | §6.3 + nota   | P0-H2 a P0-H5, P0-A5      |
-| 0011           | Renovate para gestão de dependências                                                            | §6.3          | P0-H4                     |
+| 0006           | VPS Hostinger única para staging + prod com isolamento via Docker networks                      | §5.4          | P0-C1 a P0-C5             |
+| 0007           | Ansible para configuração de VPS + OpenTofu para Cloudflare                                     | §5.5          | P0-C2, P0-D1              |
+| 0008           | Cloudflare proxied + Traefik + Let's Encrypt + mTLS origin (Authenticated Origin Pulls)         | §7.2          | P0-D2 a P0-D4             |
+| 0009           | Linguagem do hello-service                                                                      | §9, P0-E1     | **P0-E1 (DoD da tarefa)** |
+| 0010           | Stack de observabilidade Grafana LGTM + OpenTelemetry                                           | §6.1          | P0-G1                     |
+| 0011           | DevSecOps stack: Semgrep + Trivy + gitleaks + Checkov + SonarCloud (cosign + SBOM desde Fase 1) | §6.3 + nota   | P0-H2 a P0-H5, P0-A5      |
+| 0012           | Renovate para gestão de dependências                                                            | §6.3          | P0-H4                     |
 
 ### Fase 1 — MVP vertical slice
 

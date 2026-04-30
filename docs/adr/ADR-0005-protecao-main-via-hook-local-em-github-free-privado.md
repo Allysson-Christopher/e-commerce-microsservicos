@@ -1,6 +1,6 @@
 # ADR-0005 — Proteção da branch `main` via hook local em GitHub Free privado
 
-- **Status:** accepted
+- **Status:** superseded by [ADR-0006](ADR-0006-tornar-repo-publico-para-destravar-features-educacionais.md) em 2026-04-30
 - **Data:** 2026-04-30
 - **Decisores:** Allysson Christopher
 - **Tags:** repo, ci-cd, security, contributing

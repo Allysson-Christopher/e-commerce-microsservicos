@@ -104,24 +104,28 @@ Sem dependências externas — pode iniciar imediatamente.
 
 ### P0-B1 — Configurar repositório no GitHub (S) 🟡 parcial
 
-- **Status:** parcialmente concluído em 2026-04-30. Repo criado e proteção client-side ativa; falta config de merge no GitHub e Environments.
+- **Status:** parcialmente concluído em 2026-04-30. Repo criado, proteção client-side ativa, config de merge aplicada parcialmente (auto-merge paywalled). Faltam Environments `staging` e `production`.
 - **DoD original (e o que foi efetivamente feito):**
   - [x] Repositório criado — `Allysson-Christopher/e-commerce-microsservicos`, **privado**
   - [x] Push do estado atual — `main` em `origin/main`
   - [⚠️] **Branch protection** em `main` — **substituída por proteção client-side** (ver ADR-0005):
     - [x] Exigir PR — enforced via `.husky/pre-push` (tripwire local)
     - [ ] Exigir CI verde — pendente do Grupo F (mesmo no caminho server-side seria adiado)
-    - [ ] Apenas **squash merge** habilitado — config server-side; pendente até ter plano pago/público
+    - [x] Apenas **squash merge** habilitado — `allow_squash_merge=true`, `allow_merge_commit=false`, `allow_rebase_merge=false` aplicados via `gh repo edit`
     - [x] Exigir histórico linear — política preservada (squash via `gh pr merge --squash`); enforcement server-side pendente
     - [x] Sem push direto, sem force push em main — enforced client-side via `.husky/pre-push`
+  - [⚠️] **Auto-merge** — toggle `allow_auto_merge` ignorado silenciosamente pela API (paywall do GitHub Free privado, manifestação diferente do erro 403 da branch protection)
+  - [x] **Delete branch on merge** — `delete_branch_on_merge=true` aplicado (não é paywalled)
   - [ ] **Environments** `staging` (sem reviewers) e `production` (com required reviewers) — pendente; próximo passo desta tarefa
 - **Dependências:** P0-A1
 - **Notas de execução:**
-  - **Bloqueio descoberto:** GitHub Free **não permite** branch protection nem rulesets em repos privados (HTTP 403 "Upgrade to GitHub Pro or make this repository public"). Decisão consciente de manter privado e gratuito → adotamos hook local como fallback.
+  - **Bloqueio principal descoberto:** GitHub Free **não permite** branch protection nem rulesets em repos privados (HTTP 403 "Upgrade to GitHub Pro or make this repository public"). Decisão consciente de manter privado e gratuito → adotamos hook local como fallback.
   - **ADR-0005** registra a decisão completa (com alternativas descartadas: tornar público, GitHub Pro, adiar). Hook em `.husky/pre-push`, doc em `docs/contributing/local-setup.md`.
+  - **Bloqueio secundário (mesmo paywall, manifestação diferente):** `allow_auto_merge` também é paywalled em privados Free. Diferente da branch protection, a API **não retorna erro** — aceita o PATCH e silenciosamente mantém `false`. Confirmado via doc oficial e via tentativa direta de `gh api -X PATCH ... -f allow_auto_merge=true`. Documentado aqui em vez de em ADR separada porque é instância da posição já registrada em ADR-0005 ("GitHub Free retém features X em privados; adaptamos client-side ou adiamos até migração de plano"); decisão (adiar até plano permitir) não muda.
+  - **Impacto prático do auto-merge ausente:** baixo até o Grupo F. Sem CI, mesclar manualmente após push de PR é trivial. Quando workflows de CI tornarem espera real, reavaliar (ir público, assinar Pro, ou aceitar merge manual após CI verde).
   - Hook é **tripwire client-side**, não enforcement real — bypass-able com `--no-verify`, push de outra máquina, ou API. Disciplina humana continua sendo o gate principal.
-  - **Migração futura:** quando tornarmos o repo público OU subirmos pra Pro/Team OU migrarmos pra org paga, ativar branch protection (ou rulesets) server-side por cima — hook continua útil como atalho local.
-  - Auto-merge, squash-only, delete-branch-on-merge serão configurados via `gh repo edit` no próximo passo (não dependem de plano pago — são toggles do repo).
+  - **Migração futura:** quando tornarmos o repo público OU subirmos pra Pro/Team OU migrarmos pra org paga, ativar branch protection (ou rulesets) server-side **e** auto-merge — hook continua útil como atalho local.
+  - **Validado em produção:** PR #1 (`ecc7f08`) exercitou todo o ciclo (branch + push + PR + squash-merge + delete branch + sync local). Hook bloqueou push direto em main; deixou passar push em branch de feature. Histórico linear preservado.
 
 ### P0-B2 — Cloudflare: zona DNS e configuração base (M)
 

@@ -130,6 +130,13 @@ Sem dependências externas — pode iniciar imediatamente.
     - PR #2 (`b20cafc`) — auto-merge paywall confirmada e documentada nas notas.
     - PR #3 (`a4bc16e`) — `--delete-branch` redundante removido do fluxo recomendado.
     - PR #4 (cutover deste registro) — repo público, server-side ativa, hook removido.
+  - **Baseline de segurança pós-cutover (2026-04-30):** habilitados via `gh api` — Dependabot
+    vulnerability alerts, Dependabot security updates (auto-PRs), secret scanning, secret
+    scanning push protection, private vulnerability reporting. Dois sub-toggles
+    (`secret_scanning_non_provider_patterns`, `secret_scanning_validity_checks`) seguem em
+    paywall **GHAS** — API aceita o PATCH (HTTP 200) mas persiste `disabled` (mesma
+    assinatura do silent-ignore de auto-merge no plano free privado). Mitigação para
+    padrões genéricos: gitleaks no pre-commit (P0-A5), espelhado em CI por P0-H2.
 
 ### P0-B2 — Cloudflare: zona DNS e configuração base (M)
 

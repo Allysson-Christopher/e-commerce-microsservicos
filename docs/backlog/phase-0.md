@@ -516,6 +516,10 @@ Depende de E + B + C.
   - Bloqueia PR se detectar secret
   - Já configurado em pre-commit (P0-A5) — aqui é a contraparte CI
 - **Dependências:** P0-A5, P0-B1
+- **Notas:** CodeQL (SAST baseline para TS/JS) já entregue em 2026-04-30 via
+  `.github/workflows/codeql.yml` — ver **ADR-0007**. É peça paralela do mesmo Grupo H,
+  não substituto: gitleaks-CI cobre padrões de secret que CodeQL e o secret-scanning do
+  GitHub não detectam (genéricos, validity-checks são GHAS-only — ver notas de P0-B1).
 
 ### P0-H3 — Trivy scan em IaC e Dockerfile (M)
 

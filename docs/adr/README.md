@@ -33,6 +33,7 @@ exceção controlada — registra decisões já em uso desde o primeiro commit.
 | [0004](ADR-0004-versionamento-independente-com-release-please.md)            | Versionamento independente por serviço com release-please                                       | accepted                                                                                   | 2026-04-29 | ci-cd, release, repo, contributing  |
 | [0005](ADR-0005-protecao-main-via-hook-local-em-github-free-privado.md)      | Proteção da branch `main` via hook local em GitHub Free privado                                 | superseded by [0006](ADR-0006-tornar-repo-publico-para-destravar-features-educacionais.md) | 2026-04-30 | repo, ci-cd, security, contributing |
 | [0006](ADR-0006-tornar-repo-publico-para-destravar-features-educacionais.md) | Tornar repo público para destravar features educacionais e ativar branch protection server-side | accepted                                                                                   | 2026-04-30 | repo, ci-cd, security, contributing |
+| [0007](ADR-0007-code-scanning-baseline-com-codeql.md)                        | Adotar CodeQL como SAST baseline (escopo TypeScript/JavaScript)                                 | accepted                                                                                   | 2026-04-30 | ci-cd, security, devsecops          |
 
 ## ADRs candidatas (a nascerem nas tarefas correspondentes)
 
@@ -45,15 +46,15 @@ mudança de política. Atualizar conforme novas tarefas forem identificadas.
 
 ### Fase 0 — Bootstrap
 
-| ADR (provável) | Decisão                                                                                         | Refs do brief | Tarefa do backlog         |
-| -------------- | ----------------------------------------------------------------------------------------------- | ------------- | ------------------------- |
-| 0007           | VPS Hostinger única para staging + prod com isolamento via Docker networks                      | §5.4          | P0-C1 a P0-C5             |
-| 0008           | Ansible para configuração de VPS + OpenTofu para Cloudflare                                     | §5.5          | P0-C2, P0-D1              |
-| 0009           | Cloudflare proxied + Traefik + Let's Encrypt + mTLS origin (Authenticated Origin Pulls)         | §7.2          | P0-D2 a P0-D4             |
-| 0010           | Linguagem do hello-service                                                                      | §9, P0-E1     | **P0-E1 (DoD da tarefa)** |
-| 0011           | Stack de observabilidade Grafana LGTM + OpenTelemetry                                           | §6.1          | P0-G1                     |
-| 0012           | DevSecOps stack: Semgrep + Trivy + gitleaks + Checkov + SonarCloud (cosign + SBOM desde Fase 1) | §6.3 + nota   | P0-H2 a P0-H5, P0-A5      |
-| 0013           | Renovate para gestão de dependências                                                            | §6.3          | P0-H4                     |
+| ADR (provável) | Decisão                                                                                                            | Refs do brief | Tarefa do backlog         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------ | ------------- | ------------------------- |
+| 0008           | VPS Hostinger única para staging + prod com isolamento via Docker networks                                         | §5.4          | P0-C1 a P0-C5             |
+| 0009           | Ansible para configuração de VPS + OpenTofu para Cloudflare                                                        | §5.5          | P0-C2, P0-D1              |
+| 0010           | Cloudflare proxied + Traefik + Let's Encrypt + mTLS origin (Authenticated Origin Pulls)                            | §7.2          | P0-D2 a P0-D4             |
+| 0011           | Linguagem do hello-service                                                                                         | §9, P0-E1     | **P0-E1 (DoD da tarefa)** |
+| 0012           | Stack de observabilidade Grafana LGTM + OpenTelemetry                                                              | §6.1          | P0-G1                     |
+| 0013           | DevSecOps stack remanescente: Trivy + gitleaks-CI + Checkov + SonarCloud + cosign/SBOM (CodeQL já em **ADR-0007**) | §6.3 + nota   | P0-H2 a P0-H5, P0-A5      |
+| 0014           | Renovate para gestão de dependências                                                                               | §6.3          | P0-H4                     |
 
 ### Fase 1 — MVP vertical slice
 

@@ -1,0 +1,67 @@
+# Code Scanning baseline com CodeQL — escopo TS/JS apenas.
+# Java e Go entram quando o primeiro serviço da linguagem nascer (cada um com ADR própria).
+# Decisão completa: docs/adr/ADR-0007-code-scanning-baseline-com-codeql.md
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/*.ts"
+      - "**/*.tsx"
+      - "**/*.js"
+      - "**/*.jsx"
+      - "**/*.cjs"
+      - "**/*.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/codeql.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/*.ts"
+      - "**/*.tsx"
+      - "**/*.js"
+      - "**/*.jsx"
+      - "**/*.cjs"
+      - "**/*.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/codeql.yml"
+  schedule:
+    # Segunda 06:00 UTC = 03:00 BRT, off-peak. Cron ignora path filter por design — desejado:
+    # captura drift de novas queries publicadas pela GitHub mesmo em semanas sem PR de TS/JS.
+    - cron: "0 6 * * 1"
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3.35.2
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3.35.2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3.35.2
+        with:
+          category: "/language:javascript-typescript"

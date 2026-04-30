@@ -102,30 +102,34 @@ Sem dependências externas — pode iniciar imediatamente.
 
 [paralelizável com Grupo A]
 
-### P0-B1 — Configurar repositório no GitHub (S) 🟡 parcial
+### P0-B1 — Configurar repositório no GitHub (S) ✅
 
-- **Status:** parcialmente concluído em 2026-04-30. Repo criado, proteção client-side ativa, config de merge aplicada parcialmente (auto-merge paywalled). Faltam Environments `staging` e `production`.
-- **DoD original (e o que foi efetivamente feito):**
-  - [x] Repositório criado — `Allysson-Christopher/e-commerce-microsservicos`, **privado**
+- **Status:** concluído em 2026-04-30. Repo público com branch protection server-side, auto-merge, required reviewer em production e environments criados.
+- **DoD:**
+  - [x] Repositório criado — `Allysson-Christopher/e-commerce-microsservicos`, **público** (cutover de privado em 2026-04-30 — ver ADR-0006)
   - [x] Push do estado atual — `main` em `origin/main`
-  - [⚠️] **Branch protection** em `main` — **substituída por proteção client-side** (ver ADR-0005):
-    - [x] Exigir PR — enforced via `.husky/pre-push` (tripwire local)
-    - [ ] Exigir CI verde — pendente do Grupo F (mesmo no caminho server-side seria adiado)
-    - [x] Apenas **squash merge** habilitado — `allow_squash_merge=true`, `allow_merge_commit=false`, `allow_rebase_merge=false` aplicados via `gh repo edit`
-    - [x] Exigir histórico linear — política preservada (squash via `gh pr merge --squash`); enforcement server-side pendente
-    - [x] Sem push direto, sem force push em main — enforced client-side via `.husky/pre-push`
-  - [⚠️] **Auto-merge** — toggle `allow_auto_merge` ignorado silenciosamente pela API (paywall do GitHub Free privado, manifestação diferente do erro 403 da branch protection)
-  - [x] **Delete branch on merge** — `delete_branch_on_merge=true` aplicado (não é paywalled)
-  - [ ] **Environments** `staging` (sem reviewers) e `production` (com required reviewers) — pendente; próximo passo desta tarefa
+  - [x] **Branch protection** em `main` (server-side via API REST do GitHub):
+    - [x] Exigir PR — enforced server-side
+    - [ ] Exigir CI verde — `required_status_checks=null` por enquanto; preencher nomes de jobs após Grupo F
+    - [x] Apenas **squash merge** habilitado — `allow_squash_merge=true`, `allow_merge_commit=false`, `allow_rebase_merge=false`
+    - [x] Exigir histórico linear — `required_linear_history=true`
+    - [x] Sem push direto, sem force push, sem deleção em main — `enforce_admins=true`, `allow_force_pushes=false`, `allow_deletions=false`
+  - [x] **Auto-merge** — `allow_auto_merge=true`
+  - [x] **Delete branch on merge** — `delete_branch_on_merge=true`
+  - [x] **Environments** criados:
+    - [x] `staging` (sem reviewers)
+    - [x] `production` com **required reviewer = Allysson-Christopher** (id 128186654) — simula approval gate do DoD original
 - **Dependências:** P0-A1
 - **Notas de execução:**
-  - **Bloqueio principal descoberto:** GitHub Free **não permite** branch protection nem rulesets em repos privados (HTTP 403 "Upgrade to GitHub Pro or make this repository public"). Decisão consciente de manter privado e gratuito → adotamos hook local como fallback.
-  - **ADR-0005** registra a decisão completa (com alternativas descartadas: tornar público, GitHub Pro, adiar). Hook em `.husky/pre-push`, doc em `docs/contributing/local-setup.md`.
-  - **Bloqueio secundário (mesmo paywall, manifestação diferente):** `allow_auto_merge` também é paywalled em privados Free. Diferente da branch protection, a API **não retorna erro** — aceita o PATCH e silenciosamente mantém `false`. Confirmado via doc oficial e via tentativa direta de `gh api -X PATCH ... -f allow_auto_merge=true`. Documentado aqui em vez de em ADR separada porque é instância da posição já registrada em ADR-0005 ("GitHub Free retém features X em privados; adaptamos client-side ou adiamos até migração de plano"); decisão (adiar até plano permitir) não muda.
-  - **Impacto prático do auto-merge ausente:** baixo até o Grupo F. Sem CI, mesclar manualmente após push de PR é trivial. Quando workflows de CI tornarem espera real, reavaliar (ir público, assinar Pro, ou aceitar merge manual após CI verde).
-  - Hook é **tripwire client-side**, não enforcement real — bypass-able com `--no-verify`, push de outra máquina, ou API. Disciplina humana continua sendo o gate principal.
-  - **Migração futura:** quando tornarmos o repo público OU subirmos pra Pro/Team OU migrarmos pra org paga, ativar branch protection (ou rulesets) server-side **e** auto-merge — hook continua útil como atalho local.
-  - **Validado em produção:** PR #1 (`ecc7f08`) exercitou todo o ciclo (branch + push + PR + squash-merge + delete branch + sync local). Hook bloqueou push direto em main; deixou passar push em branch de feature. Histórico linear preservado.
+  - **Histórico didático (paywalls descobertas em 2026-04-30):** durante a primeira tentativa, com repo privado em GitHub Free, três features bateram paywall — branch protection (HTTP 403), auto-merge (silently ignored), required reviewers em environments (HTTP 422). Adotamos hook client-side em `.husky/pre-push` como fallback (ver **ADR-0005**, hoje superseded).
+  - **Cutover para público (ADR-0006):** prioridade de aprendizado falou mais alto que privacidade do código educacional. Repo virou público via `gh api -X PATCH .../e-commerce-microsservicos -f visibility=public` (a flag `gh repo edit --visibility` exige gh ≥ 2.50; usamos a versão 2.45 e a API direta — anotar em runbook futuro).
+  - **Email noreply** configurado pra commits futuros (`128186654+Allysson-Christopher@users.noreply.github.com`, escopo: este repo). Histórico anterior ao cutover **não foi reescrito** — operação destrutiva, ganho marginal.
+  - **Hook pre-push removido** após o cutover — server-side cobre a regra com mais robustez (vale para qualquer cliente git, não só máquinas com husky).
+  - **Validações em produção (todas no fluxo PR-only):**
+    - PR #1 (`ecc7f08`) — pre-push hook ativado, validou bloqueio de push direto em main e passagem em feature branch.
+    - PR #2 (`b20cafc`) — auto-merge paywall confirmada e documentada nas notas.
+    - PR #3 (`a4bc16e`) — `--delete-branch` redundante removido do fluxo recomendado.
+    - PR #4 (cutover deste registro) — repo público, server-side ativa, hook removido.
 
 ### P0-B2 — Cloudflare: zona DNS e configuração base (M)
 

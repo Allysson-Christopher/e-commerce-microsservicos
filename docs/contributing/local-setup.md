@@ -79,27 +79,21 @@ git commit -m "test(repo): smoke" # vai rejeitar (test exige scope conhecido + b
 │   └─ commit-msg hook (.husky/commit-msg)                    │
 │         └─ commitlint         → valida Conventional Commits │
 │                                                             │
-│ git push                                                    │
+│ git push (em main)                                          │
 │   │                                                         │
-│   └─ pre-push hook (.husky/pre-push)                        │
-│         └─ bloqueia push direto em `main` (ADR-0005)        │
+│   └─ GitHub branch protection (server-side)                 │
+│         └─ recusa o push e exige PR (ADR-0006)              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Sobre o pre-push hook
+### Proteção da branch `main`
 
-Esse hook bloqueia `git push` direto na branch `main` desta máquina e te orienta
-a abrir um Pull Request. Existe porque o **GitHub Free não permite branch
-protection server-side em repositórios privados** (precisa GitHub Pro/Team ou
-repo público) — então a regra "muda em main só via PR" é enforced
-client-side via husky. Decisão completa em
-[`docs/adr/ADR-0005`](../adr/ADR-0005-protecao-main-via-hook-local-em-github-free-privado.md).
-
-**É um tripwire, não enforcement real.** Pode ser contornado com
-`git push --no-verify`, push de outra máquina, ou chamadas diretas à API do
-GitHub. Não conte com ele para garantir que `main` é intocável — a disciplina
-é sua. Quando o repo virar público ou o plano subir para Pro, ativamos
-proteção server-side por cima e o hook continua útil como atalho local.
+Push direto em `main` é recusado pelo **GitHub** (server-side branch protection
+ativa desde o cutover documentado em ADR-0006). Não há mais hook local — o
+servidor faz o trabalho com mais robustez (vale também em pushes feitos de
+outra máquina, runners de CI, ou chamadas API). ADR-0005 (que adicionou um
+hook client-side enquanto o repo era privado em GitHub Free) está
+**superseded**.
 
 **Fluxo correto** (substitui `git push origin main` direto):
 

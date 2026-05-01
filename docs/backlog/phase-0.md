@@ -140,18 +140,24 @@ Sem dependências externas — pode iniciar imediatamente.
 
 ### P0-B2 — Cloudflare: zona DNS e configuração base (M)
 
+> **Pivot ADR-0008 (2026-05-01):** o "IP da VPS" do DoD original passa a ser o
+> **Elastic IP da EC2** em `us-east-1`. EIP precisa estar alocado e associado
+> antes desta tarefa rodar — vira sub-passo de **P0-B4** (inventário AWS).
+> O domínio escolhido é `loja.chatdelta.ia.br` (subdomínio delegado;
+> registrar fica em Registro.br, zona DNS no Cloudflare).
+
 - **DoD:**
   - Conta Cloudflare ativa (free tier)
-  - Zona criada para o domínio (decidir/comprar/apontar nameservers)
-  - Registros A iniciais (placeholders apontando para a VPS Hostinger):
-    - `meuapp.com` → IP da VPS (proxied)
-    - `staging.meuapp.com` → IP da VPS (proxied)
-    - `traefik.staging.meuapp.com`, `grafana.staging.meuapp.com` (admin, proxied)
+  - Zona `loja.chatdelta.ia.br` criada (subdomínio delegado do Registro.br)
+  - Registros A iniciais (placeholders apontando para o Elastic IP da EC2):
+    - `loja.chatdelta.ia.br` → EIP (proxied) — equivalente ao "prod" do brief
+    - `staging.loja.chatdelta.ia.br` → EIP (proxied)
+    - `traefik.staging.loja.chatdelta.ia.br`, `grafana.staging.loja.chatdelta.ia.br` (admin, proxied)
   - SSL/TLS modo **Full (Strict)**
   - HSTS habilitado
   - **Bot Fight Mode** habilitado
-  - Token de API criado (escopo mínimo de zona) — guardar para Terraform/OpenTofu
-- **Dependências:** —
+  - Token de API criado (escopo mínimo de zona) — guardar para OpenTofu (P0-D1)
+- **Dependências:** **P0-B4** (precisa do EIP alocado)
 
 ### P0-B3 — GHCR e tokens (S)
 
@@ -161,19 +167,44 @@ Sem dependências externas — pode iniciar imediatamente.
   - Visibilidade dos pacotes definida (privado por default)
 - **Dependências:** P0-B1
 
-### P0-B4 — Verificar acesso à VPS Hostinger (S)
+### P0-B4 — Inventário e baseline AWS (M) ✅ parcialmente concluído em 2026-05-01
 
+- **Status:** núcleo concluído nesta sessão (auth + EC2 + SSM + Budget); pendentes Elastic IP, EBS persistente e doc de specs.
 - **DoD:**
-  - SSH com senha funciona como root (acesso inicial confirmado)
-  - IP público anotado em local seguro
-  - Especificações da VPS confirmadas (RAM, CPU, disco) e registradas em `docs/infra/vps-specs.md`
+  - [x] Conta AWS confirmada e acessível (account `905418198749`, home region `us-east-1` para Identity Center — não muda sem deletar)
+  - [x] EC2 inicial provisionada (`i-072708190abd3d102`, `t3.micro`, AL2023 2023.11.20260413, `us-east-1b`)
+  - [x] **IAM Identity Center** habilitado, usuário `allysson` em permission set `AdministratorAccess` com MFA TOTP
+  - [x] AWS CLI v2.34.41 instalado per-user em `~/.local/bin/aws` (mesmo padrão de `gitleaks` da P0-A5)
+  - [x] Profile SSO `AdministratorAccess-905418198749` configurado em `~/.aws/config` (`region=us-east-1`, `output=json`)
+  - [x] **AWS Budget** mensal de USD 30 com 4 thresholds (17%/50%/100% ACTUAL + 100% FORECASTED) → `allyssoncsf@gmail.com`
+  - [x] IAM Role + Instance Profile `EcommerceEC2SSMRole` (policy `AmazonSSMManagedInstanceCore`) criados e anexados à EC2
+  - [x] SSM Session Manager funcional — `session-manager-plugin` v1.2.814.0 em `~/.local/bin/`; sessão interativa validada; `aws ssm send-command` validado end-to-end
+  - [x] Security Group `sg-06f620dffedd9008f` hardenizado — ingress `22/tcp ← 0.0.0.0/0` revogado (SSH público fechado; sshd interno preservado)
+  - [x] Tags policy aplicada manualmente: `Project=ecommerce-microsservicos`, `ManagedBy=manual` em recursos criados
+  - [ ] **Elastic IP** alocado e associado à EC2 (pré-requisito de P0-B2; não alocado nesta sessão)
+  - [ ] **EBS volume persistente** para state separado do root (pode ser P0-C5 ou quando primeiro stateful service entrar)
+  - [ ] `docs/infra/aws-specs.md` com inventário (instance ID, AMI, EIP, EBS, IAM resources, custo mensal estimado)
 - **Dependências:** —
+- **Notas de execução:**
+  - Tarefa originalmente "Verificar acesso à VPS Hostinger" — reescrita após pivot arquitetural registrado em **ADR-0008** (AWS EC2 efêmera) e **ADR-0009** (SSM Session Manager).
+  - Recursos AWS criados manualmente nesta sessão entram com tag `ManagedBy=manual`; serão importados pra state OpenTofu em **P0-D1** (`tofu import`), com a tag mudando para `terraform` no mesmo PR.
+  - Chave SSH `loja-microsservicos.pem` movida do diretório do repo para `~/.ssh/` (`chmod 400`); permanece como fallback emergencial caso SSM quebre.
 
 ---
 
 ## Grupo C — Bootstrap da VPS via Ansible
 
 Sequencial. Depende de B4.
+
+> **Pivot ADR-0008 (2026-05-01):** o "VPS" deste grupo passa a ser a **EC2 da AWS**
+> (Amazon Linux 2023, não Ubuntu/Debian). Roles do Ansible vão usar `dnf` em vez de
+> `apt`; SELinux ativo por default; usuário inicial `ec2-user` (não `root`). A criação
+> do usuário `deploy` (P0-C2) continua válida como prática.
+>
+> **Conexão Ansible:** SSH público está **fechado** desde **ADR-0009** (SSM Session
+> Manager substituiu admin access). Ansible se conecta via `community.aws.aws_ssm` ou
+> via SSH-over-SSM (`ProxyCommand` no `~/.ssh/config`). Decisão final fica no PR de
+> P0-C1.
 
 ### P0-C1 — Inventário Ansible inicial e teste de conectividade (S)
 
@@ -226,6 +257,16 @@ Sequencial. Depende de B4.
 ## Grupo D — DNS, reverse proxy e TLS
 
 Depende de B2 + C5.
+
+> **Pivot ADR-0008 (2026-05-01):** firewall a nível de OS (`ufw`) passa a ser
+> camada **adicional** sobre os Security Groups da AWS — SG é a fonte de verdade
+> da exposição inbound. P0-C3 segue configurando `ufw` como defense in depth
+> interno. Portas 80/443 do Traefik precisam estar abertas no Security Group
+> antes do P0-D2 rodar (sub-passo do PR de D2).
+>
+> **OpenTofu agora cobre AWS além de Cloudflare:** P0-D1 expande para incluir
+> import dos recursos AWS criados manualmente em P0-B4 (EC2, IAM Role,
+> Instance Profile, Security Group, EIP).
 
 ### P0-D1 — OpenTofu/Cloudflare: registros DNS via IaC (M)
 
@@ -351,6 +392,13 @@ Depende de A. Pode iniciar em paralelo com C/D.
 ## Grupo F — CI/CD pipeline
 
 Depende de E + B + C.
+
+> **Pivot ADR-0008 (2026-05-01):** auth de deploy muda. **`DEPLOY_SSH_KEY` em
+> GitHub Secrets é substituída por OIDC trust** entre GitHub Actions e AWS IAM
+> (sem credenciais long-lived em Secrets). P0-F3 vira "configurar OIDC + IAM
+> Role para CD"; deploy nas EC2 vai via `aws ssm send-command`
+> (`AWS-RunShellScript`) — não SSH direto. Decisão peer cabe em ADR específica
+> que nasce no PR de P0-F3.
 
 ### P0-F1 — Workflow CI: lint + test do hello-service (M)
 

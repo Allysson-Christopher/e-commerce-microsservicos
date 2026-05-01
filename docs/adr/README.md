@@ -24,16 +24,18 @@ exceção controlada — registra decisões já em uso desde o primeiro commit.
 
 ## Índice
 
-| ADR                                                                          | Título                                                                                          | Status                                                                                     | Data       | Tags                                |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------- | ----------------------------------- |
-| [0000](ADR-0000-como-usamos-adrs.md)                                         | Como usamos ADRs neste projeto                                                                  | accepted                                                                                   | 2026-04-29 | meta, processo, documentação        |
-| [0001](ADR-0001-monorepo-unico-poliglota.md)                                 | Adotar monorepo único poliglota                                                                 | accepted                                                                                   | 2026-04-29 | repo, estrutura, ci-cd, contracts   |
-| [0002](ADR-0002-conventional-commits-com-scope-obrigatorio.md)               | Conventional Commits com scope obrigatório e body-required-when-typed                           | accepted                                                                                   | 2026-04-29 | repo, ci, processo, contributing    |
-| [0003](ADR-0003-trunk-based-development-com-squash-merge.md)                 | Trunk-based development com squash merge                                                        | accepted                                                                                   | 2026-04-29 | repo, ci-cd, processo, contributing |
-| [0004](ADR-0004-versionamento-independente-com-release-please.md)            | Versionamento independente por serviço com release-please                                       | accepted                                                                                   | 2026-04-29 | ci-cd, release, repo, contributing  |
-| [0005](ADR-0005-protecao-main-via-hook-local-em-github-free-privado.md)      | Proteção da branch `main` via hook local em GitHub Free privado                                 | superseded by [0006](ADR-0006-tornar-repo-publico-para-destravar-features-educacionais.md) | 2026-04-30 | repo, ci-cd, security, contributing |
-| [0006](ADR-0006-tornar-repo-publico-para-destravar-features-educacionais.md) | Tornar repo público para destravar features educacionais e ativar branch protection server-side | accepted                                                                                   | 2026-04-30 | repo, ci-cd, security, contributing |
-| [0007](ADR-0007-code-scanning-baseline-com-codeql.md)                        | Adotar CodeQL como SAST baseline (escopo TypeScript/JavaScript)                                 | accepted                                                                                   | 2026-04-30 | ci-cd, security, devsecops          |
+| ADR                                                                          | Título                                                                                          | Status                                                                                     | Data       | Tags                                    |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------- | --------------------------------------- |
+| [0000](ADR-0000-como-usamos-adrs.md)                                         | Como usamos ADRs neste projeto                                                                  | accepted                                                                                   | 2026-04-29 | meta, processo, documentação            |
+| [0001](ADR-0001-monorepo-unico-poliglota.md)                                 | Adotar monorepo único poliglota                                                                 | accepted                                                                                   | 2026-04-29 | repo, estrutura, ci-cd, contracts       |
+| [0002](ADR-0002-conventional-commits-com-scope-obrigatorio.md)               | Conventional Commits com scope obrigatório e body-required-when-typed                           | accepted                                                                                   | 2026-04-29 | repo, ci, processo, contributing        |
+| [0003](ADR-0003-trunk-based-development-com-squash-merge.md)                 | Trunk-based development com squash merge                                                        | accepted                                                                                   | 2026-04-29 | repo, ci-cd, processo, contributing     |
+| [0004](ADR-0004-versionamento-independente-com-release-please.md)            | Versionamento independente por serviço com release-please                                       | accepted                                                                                   | 2026-04-29 | ci-cd, release, repo, contributing      |
+| [0005](ADR-0005-protecao-main-via-hook-local-em-github-free-privado.md)      | Proteção da branch `main` via hook local em GitHub Free privado                                 | superseded by [0006](ADR-0006-tornar-repo-publico-para-destravar-features-educacionais.md) | 2026-04-30 | repo, ci-cd, security, contributing     |
+| [0006](ADR-0006-tornar-repo-publico-para-destravar-features-educacionais.md) | Tornar repo público para destravar features educacionais e ativar branch protection server-side | accepted                                                                                   | 2026-04-30 | repo, ci-cd, security, contributing     |
+| [0007](ADR-0007-code-scanning-baseline-com-codeql.md)                        | Adotar CodeQL como SAST baseline (escopo TypeScript/JavaScript)                                 | accepted                                                                                   | 2026-04-30 | ci-cd, security, devsecops              |
+| [0008](ADR-0008-migrar-de-vps-hostinger-para-aws-ec2-efemera.md)             | Migrar de VPS Hostinger única para AWS EC2 efêmera em `us-east-1`                               | accepted                                                                                   | 2026-05-01 | infra, ci-cd, security, devops, cost    |
+| [0009](ADR-0009-substituir-ssh-por-aws-ssm-session-manager.md)               | Substituir SSH público por AWS SSM Session Manager para acesso administrativo à EC2             | accepted                                                                                   | 2026-05-01 | security, infra, devops, devsecops, iam |
 
 ## ADRs candidatas (a nascerem nas tarefas correspondentes)
 
@@ -46,15 +48,22 @@ mudança de política. Atualizar conforme novas tarefas forem identificadas.
 
 ### Fase 0 — Bootstrap
 
-| ADR (provável) | Decisão                                                                                                            | Refs do brief | Tarefa do backlog         |
-| -------------- | ------------------------------------------------------------------------------------------------------------------ | ------------- | ------------------------- |
-| 0008           | VPS Hostinger única para staging + prod com isolamento via Docker networks                                         | §5.4          | P0-C1 a P0-C5             |
-| 0009           | Ansible para configuração de VPS + OpenTofu para Cloudflare                                                        | §5.5          | P0-C2, P0-D1              |
-| 0010           | Cloudflare proxied + Traefik + Let's Encrypt + mTLS origin (Authenticated Origin Pulls)                            | §7.2          | P0-D2 a P0-D4             |
-| 0011           | Linguagem do hello-service                                                                                         | §9, P0-E1     | **P0-E1 (DoD da tarefa)** |
-| 0012           | Stack de observabilidade Grafana LGTM + OpenTelemetry                                                              | §6.1          | P0-G1                     |
-| 0013           | DevSecOps stack remanescente: Trivy + gitleaks-CI + Checkov + SonarCloud + cosign/SBOM (CodeQL já em **ADR-0007**) | §6.3 + nota   | P0-H2 a P0-H5, P0-A5      |
-| 0014           | Renovate para gestão de dependências                                                                               | §6.3          | P0-H4                     |
+| ADR (provável) | Decisão                                                                                                             | Refs do brief | Tarefa do backlog         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------- | ------------- | ------------------------- |
+| 0010           | Ansible para configuração de EC2 (Amazon Linux 2023) + OpenTofu para Cloudflare e AWS (VPC, IAM, EC2, EBS, EIP, SG) | §5.5          | P0-C2, P0-D1              |
+| 0011           | Cloudflare proxied + Traefik + Let's Encrypt + mTLS origin (Authenticated Origin Pulls)                             | §7.2          | P0-D2 a P0-D4             |
+| 0012           | OIDC trust GitHub Actions ↔ AWS IAM para CD (substitui `DEPLOY_SSH_KEY` em GitHub Secrets)                          | §5.3          | P0-F3                     |
+| 0013           | Linguagem do hello-service                                                                                          | §9, P0-E1     | **P0-E1 (DoD da tarefa)** |
+| 0014           | Stack de observabilidade Grafana LGTM + OpenTelemetry                                                               | §6.1          | P0-G1                     |
+| 0015           | DevSecOps stack remanescente: Trivy + gitleaks-CI + Checkov + SonarCloud + cosign/SBOM (CodeQL já em **ADR-0007**)  | §6.3 + nota   | P0-H2 a P0-H5, P0-A5      |
+| 0016           | Renovate para gestão de dependências                                                                                | §6.3          | P0-H4                     |
+
+> **Histórico de remapeamento (2026-05-01):** o número 0008 era esperado para
+> "VPS Hostinger única" — descartado porque a decisão foi superseded antes de
+> nascer pela **ADR-0008** (migração para AWS EC2). 0009 era esperado para
+> "Ansible + OpenTofu Cloudflare-only" — agora 0010 com escopo expandido para
+> AWS. Adicionada candidata 0012 (OIDC GHA↔AWS) que não existia no plano
+> original. Demais shifts +2 vs versão anterior do índice.
 
 ### Fase 1 — MVP vertical slice
 

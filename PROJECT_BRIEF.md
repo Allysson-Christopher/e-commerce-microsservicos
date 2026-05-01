@@ -584,7 +584,10 @@ chore(deps): bump deps globais (raro, sem scope = afeta tudo)
 - Tekton/Argo Workflows para CI dentro do cluster — exercício avançado opcional
 
 ### 5.4 Containerização e orquestração (caminho de execução)
-**Escolha:** Caminho faseado em VPS única da Hostinger (recomendação A)
+
+> **⚠️ Atualização (2026-05-01) — ver [ADR-0008](docs/adr/ADR-0008-migrar-de-vps-hostinger-para-aws-ec2-efemera.md) e [ADR-0009](docs/adr/ADR-0009-substituir-ssh-por-aws-ssm-session-manager.md):** durante a execução da Fase 0 a plataforma de execução foi migrada desta seção (VPS Hostinger única) para **AWS EC2 efêmera em `us-east-1`**, sob modelo "spin-up para desenvolver / terminate quando não precisar". Acesso administrativo via SSM Session Manager (zero portas inbound; sem SSH público). Conceitos didáticos da seção (capacity planning, networks isoladas, Traefik compartilhado, deploy via API, backups externos) **continuam válidos** — só muda o substrato (EC2 + EBS + Security Groups no lugar de VPS + ufw + IP fixo). A descrição original abaixo é preservada como registro de planejamento.
+
+**Escolha (versão original — superseded por ADR-0008):** Caminho faseado em VPS única da Hostinger (recomendação A)
 
 **Contexto:**
 - VPS única da Hostinger hospedando **staging + prod** simultaneamente

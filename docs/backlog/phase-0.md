@@ -138,26 +138,32 @@ Sem dependências externas — pode iniciar imediatamente.
     assinatura do silent-ignore de auto-merge no plano free privado). Mitigação para
     padrões genéricos: gitleaks no pre-commit (P0-A5), espelhado em CI por P0-H2.
 
-### P0-B2 — Cloudflare: zona DNS e configuração base (M)
+### P0-B2 — Cloudflare: zona DNS e configuração base (M) ✅ concluído em 2026-05-02
 
-> **Pivot ADR-0008 (2026-05-01):** o "IP da VPS" do DoD original passa a ser o
-> **Elastic IP da EC2** em `us-east-1`. EIP precisa estar alocado e associado
-> antes desta tarefa rodar — vira sub-passo de **P0-B4** (inventário AWS).
-> O domínio escolhido é `loja.chatdelta.ia.br` (subdomínio delegado;
-> registrar fica em Registro.br, zona DNS no Cloudflare).
-
+- **Status:** concluído em 2026-05-02. Domínio `chatdelta.cloud` (não o originalmente planejado `loja.chatdelta.ia.br`) — ver "Notas de execução".
 - **DoD:**
-  - Conta Cloudflare ativa (free tier)
-  - Zona `loja.chatdelta.ia.br` criada (subdomínio delegado do Registro.br)
-  - Registros A iniciais (placeholders apontando para o Elastic IP da EC2):
-    - `loja.chatdelta.ia.br` → EIP (proxied) — equivalente ao "prod" do brief
-    - `staging.loja.chatdelta.ia.br` → EIP (proxied)
-    - `traefik.staging.loja.chatdelta.ia.br`, `grafana.staging.loja.chatdelta.ia.br` (admin, proxied)
-  - SSL/TLS modo **Full (Strict)**
-  - HSTS habilitado
-  - **Bot Fight Mode** habilitado
-  - Token de API criado (escopo mínimo de zona) — guardar para OpenTofu (P0-D1)
-- **Dependências:** **P0-B4** (precisa do EIP alocado)
+  - [x] Conta Cloudflare ativa (free tier) com MFA TOTP via Bitwarden
+  - [x] Zona `chatdelta.cloud` criada via full setup (NS apontados pra `marty.ns.cloudflare.com` + `destiny.ns.cloudflare.com` no painel Hostinger; status **Active**)
+  - [x] Registros A iniciais apontando para o Elastic IP da EC2 (`32.193.69.140`):
+    - [x] `chatdelta.cloud` → EIP (proxied) — apex, futuro prod
+    - [x] `staging.chatdelta.cloud` → EIP (proxied)
+    - [x] `traefik.staging.chatdelta.cloud` → EIP (proxied)
+    - [x] `grafana.staging.chatdelta.cloud` → EIP (proxied)
+    - [x] CNAME `www → chatdelta.cloud` (proxied) — padrão útil
+  - [x] SSL/TLS modo **Full (strict)** (Automatic mode desabilitado pra controle explícito)
+  - [x] HSTS habilitado conservador: `max-age=2592000` (30 dias), `includeSubDomains=Off`, `preload=Off`, No-Sniff Header On — plano de ramp documentado em `docs/infra/cloudflare.md`
+  - [x] **Bot Fight Mode** habilitado
+  - [x] Token de API `opentofu-chatdelta-cloud-dns` criado com escopo mínimo (`Zone:Read` + `Zone:DNS:Edit` em `chatdelta.cloud` apenas) — armazenado em Bitwarden vault, **nunca** versionado
+- **Dependências:** **P0-B4** (Elastic IP alocado em 2026-05-02 nesta sessão; ver `docs/infra/cloudflare.md` seção "Origem")
+- **Notas de execução:**
+  - **Pivot de domínio (2026-05-02):** plano original era `loja.chatdelta.ia.br` (subdomínio delegado de domínio existente). **Bloqueio descoberto durante execução:** Cloudflare paywallizou subdomain zone setup (Enterprise-only) e CNAME setup partial (Business-only) no plano free. Avaliados 4 caminhos (migrar `chatdelta.ia.br` inteiro / comprar domínio dedicado / Route 53 / pagar CF Business). Escolha: **comprar `chatdelta.cloud` na Hostinger** — isolação total, custo trivial (~$15/ano), Cloudflare features completas no free, branding mais limpo pra portfolio. Detalhes em `docs/runbooks/cloudflare-setup.md` seção "Escolhas operacionais".
+  - **Decidido NÃO criar ADR pra esse pivot** — é decisão operacional decorrente de limitação de plano CF, não nova decisão arquitetural; já implícito sob ADR-0008. Runbook + nota aqui cobrem o registro.
+  - **Documentação produzida nesta tarefa:**
+    - `docs/runbooks/cloudflare-setup.md` — runbook reproduzível do zero (registrar→NS→zona→SSL→HSTS→Bot Fight→token), com critérios de escolha de registrar e plano de ramp HSTS
+    - `docs/infra/cloudflare.md` — registro declarativo do estado atual (zona, NS, EIP origem, registros DNS, SSL, HSTS, tokens) — vira espelho do state OpenTofu quando P0-D1 importar
+  - **Verificação final:** `dig +short A *.chatdelta.cloud @1.1.1.1` retorna IPs Cloudflare (`104.21.x.x` + `172.67.x.x`) em todos os 4 hostnames — origem `32.193.69.140` permanece escondida conforme brief §7.2.
+  - **Hostnames resultantes substituem os de `meuapp.com` do brief original** em toda a documentação subsequente (P0-D2 a P0-D5, Grupo E hello-service, Grupo G observability admin URLs).
+  - **Nada configurado em Page Rules / WAF Custom Rules / Workers / Turnstile / Logpush** — esses ficam pra Grupo D (P0-D1+) e Fase 1.
 
 ### P0-B3 — GHCR e tokens (S)
 

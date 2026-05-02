@@ -203,19 +203,26 @@ Sem dependências externas — pode iniciar imediatamente.
   - **Sem ADR para "gp3 vs gp2":** decisão default pequena demais, registrada como nota em `aws-specs.md` ("Política default para volumes novos"). ADR nasce em P0-C5 se a escolha real trouxer surpresa (io2, múltiplos volumes, snapshots não-triviais).
   - **Gaps de conformidade documentados honestamente:** EC2/SG/Root EBS sem tags policy completa, root EBS sem encryption-at-rest, SG nome `launch-wizard-2` legado. Itens listados em `aws-specs.md` "Follow-ups conhecidos" como dívida explícita — endereçáveis em PRs específicos antes ou durante P0-D1, **não bloqueiam o fechamento desta tarefa**.
 
-### P0-B5 — CloudTrail organization trail + AWS Config baseline (M)
+### P0-B5 — CloudTrail organization trail + AWS Config baseline (M) ✅ concluído em 2026-05-02
 
+- **Status:** concluído em 2026-05-02. Decisões técnicas e alternativas registradas em **ADR-0011**; runbook reproduzível em `docs/runbooks/aws-audit-baseline.md`; estado declarativo em `docs/infra/aws-specs.md` seção "Audit & Compliance".
 - **DoD:**
-  - CloudTrail trail multi-region habilitado (gerenciamento + data events básicos), output em S3 bucket dedicado com lifecycle policy (90 dias hot → Glacier ou expirar)
-  - S3 bucket cifrado com SSE-S3 (ou KMS), bucket policy negando deleção/modificação direta de objetos
-  - AWS Config habilitado na home region com **conformance pack `Operational-Best-Practices-for-EC2`** (ou similar) ativo
-  - Rule mínima `required-tags` configurada com chave `Project` (alerta drift dos recursos `ManagedBy=manual` que ainda não estão conformes — referência em `aws-specs.md` "Follow-ups conhecidos")
-  - Documentação em `docs/runbooks/aws-audit-baseline.md` (procedimento de habilitação reproduzível) + atualização de `docs/infra/aws-specs.md` com seção "Audit & Compliance"
+  - [x] CloudTrail trail multi-region habilitado — `ecommerce-microsservicos-management-trail`, **management events apenas** (data events e Insights adiados conscientemente, ver ADR-0011), log file validation enabled, output em `s3://ecommerce-microsservicos-audit-905418198749/cloudtrail/`
+  - [x] S3 bucket dedicado `ecommerce-microsservicos-audit-905418198749` com lifecycle 90d Standard → 365d Glacier IR → expire (455d totais)
+  - [x] S3 bucket cifrado com **SSE-S3** (CMK customer descartada conscientemente — ADR-0011 alternativa), bucket policy com 7 statements (Allow CloudTrail/Config + Deny non-SSL + Deny `s3:DeleteObject*` por qualquer principal)
+  - [x] AWS Config habilitado em `us-east-1` com `allSupported=true` + `includeGlobalResourceTypes=true`
+  - [x] **Conformance pack `ecommerce-OBP-EC2`** ativo (template AWS-managed `Operational-Best-Practices-for-EC2.yaml` aplicado as-is)
+  - [x] Rule `required-tags-Project` (managed `REQUIRED_TAGS`) com tag `Project=ecommerce-microsservicos`, escopada a 7 resource types onde o projeto cria recursos (EC2, EBS, SG, NIC, EIP, IAM Role, Trail) — pós-scope captura 4 NON_COMPLIANT do projeto + 2 SGs default da default VPC (irredutíveis)
+  - [x] Runbook `docs/runbooks/aws-audit-baseline.md` — reproduz toda a baseline do zero
+  - [x] Atualização de `docs/infra/aws-specs.md` — nova seção "Audit & Compliance" com S3 audit bucket / CloudTrail / AWS Config / conformance pack / regra; lista de imports pra P0-D1 expandida com todos os novos recursos
 - **Dependências:** P0-B4
-- **Notas:**
-  - Materializa **ADR-0010** (AWS como eixo deliberado) com baixo custo: CloudTrail management events e Config base são **gratuitos**; data events e regras avançadas são pay-per-use mas controlados pelo Budget existente
-  - Resolve parcialmente follow-up #1, #2, #4 do `aws-specs.md` (drift de tags fica visível no Config dashboard)
-  - Pré-requisito futuro pra qualquer ADR de compliance (LGPD/SOC 2) — audit trail centralizado existe sem retrabalho
+- **Notas de execução:**
+  - **Achado durante a execução:** primeira aplicação da regra `required-tags` sem scope capturou 26 NON_COMPLIANT, dos quais 20 eram **legacy de outros projetos pessoais na mesma conta** (7 buckets S3, 2 ACM certs, default VPC + componentes). Decisão de escopar a regra (decision #4 da ADR-0011) reduziu pra 6 NON_COMPLIANT relevantes. Documentação honesta no `aws-specs.md` seção "Achados notáveis".
+  - **Custo total estimado da audit baseline:** ~$0.30-1.00/mês (Config) + <$0.05/mês (S3 storage inicial) + $0 CloudTrail + $0 conformance pack — cabe folgado no Budget de $30.
+  - Materializa **ADR-0010** (AWS como eixo deliberado) com baixo custo, primeira tarefa pós-ADR-0010 que de fato exercita serviços AWS-native (CloudTrail, Config, S3 lifecycle) sem esperar Phase 2.
+  - Resolve **automaticamente** parte dos follow-ups #1/#2/#4 do `aws-specs.md` (drift de tags em EC2/SG/Root EBS/NIC fica visível no Config dashboard, em vez de só no doc).
+  - Pré-requisito futuro pra qualquer ADR de compliance (LGPD/SOC 2) — audit trail centralizado existe sem retrabalho.
+  - **Recursos AWS criados nesta sessão (`ManagedBy=manual`)**, todos listados em `aws-specs.md` "Recursos `ManagedBy=manual` que entrarão em state OpenTofu (P0-D1)": S3 bucket, CloudTrail trail, Config recorder, delivery channel, conformance pack, regra. Service-linked role `AWSServiceRoleForConfig` é gerenciada pela AWS — não importar.
 
 ### P0-B6 — Escopar permission set IAM Identity Center (M)
 

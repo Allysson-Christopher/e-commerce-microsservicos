@@ -1,0 +1,462 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Layer1ReadOnlyBroad",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "ec2:Get*",
+        "ec2:List*",
+        "ec2:SearchTransitGatewayRoutes",
+        "ec2:ExportClientVpnClientConfiguration",
+        "s3:ListAllMyBuckets",
+        "s3:GetBucketLocation",
+        "s3:ListBucket",
+        "iam:Get*",
+        "iam:List*",
+        "iam:GenerateCredentialReport",
+        "iam:GenerateServiceLastAccessedDetails",
+        "iam:SimulatePrincipalPolicy",
+        "iam:SimulateCustomPolicy",
+        "cloudtrail:Get*",
+        "cloudtrail:Describe*",
+        "cloudtrail:List*",
+        "cloudtrail:LookupEvents",
+        "config:Describe*",
+        "config:Get*",
+        "config:List*",
+        "config:SelectResourceConfig",
+        "config:SelectAggregateResourceConfig",
+        "budgets:Describe*",
+        "budgets:View*",
+        "ce:Get*",
+        "ce:List*",
+        "ce:Describe*",
+        "sts:GetCallerIdentity",
+        "sts:GetSessionToken",
+        "ssm:Describe*",
+        "ssm:List*",
+        "ssm:GetParameter",
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath",
+        "ssm:GetCommandInvocation",
+        "kms:ListKeys",
+        "kms:ListAliases",
+        "kms:DescribeKey",
+        "support:*",
+        "tag:Get*",
+        "tag:Describe*",
+        "resource-groups:Get*",
+        "resource-groups:List*",
+        "resource-groups:Search*",
+        "cloudwatch:Describe*",
+        "cloudwatch:Get*",
+        "cloudwatch:List*",
+        "logs:Describe*",
+        "logs:Get*",
+        "logs:List*",
+        "logs:FilterLogEvents",
+        "logs:StartQuery",
+        "logs:StopQuery",
+        "logs:GetQueryResults"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Layer2EC2MutativeProjectTag",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:StartInstances",
+        "ec2:StopInstances",
+        "ec2:RebootInstances",
+        "ec2:TerminateInstances",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:ModifyInstanceMetadataOptions",
+        "ec2:AssociateIamInstanceProfile",
+        "ec2:DisassociateIamInstanceProfile",
+        "ec2:ReplaceIamInstanceProfileAssociation",
+        "ec2:AttachVolume",
+        "ec2:DetachVolume",
+        "ec2:ModifyVolume",
+        "ec2:DeleteVolume",
+        "ec2:CreateSnapshot",
+        "ec2:DeleteSnapshot",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:AuthorizeSecurityGroupEgress",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:RevokeSecurityGroupEgress",
+        "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
+        "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
+        "ec2:DeleteSecurityGroup",
+        "ec2:AssociateAddress",
+        "ec2:DisassociateAddress",
+        "ec2:ReleaseAddress",
+        "ec2:AttachNetworkInterface",
+        "ec2:DetachNetworkInterface",
+        "ec2:DeleteNetworkInterface",
+        "ec2:ModifyNetworkInterfaceAttribute"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Project": "ecommerce-microsservicos"
+        }
+      }
+    },
+    {
+      "Sid": "Layer2EC2CreateTagsOnExistingProjectResources",
+      "Effect": "Allow",
+      "Action": ["ec2:CreateTags", "ec2:DeleteTags"],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Project": "ecommerce-microsservicos"
+        }
+      }
+    },
+    {
+      "Sid": "Layer2EC2CreateTagsToBackfillGaps",
+      "Effect": "Allow",
+      "Action": "ec2:CreateTags",
+      "Resource": [
+        "arn:aws:ec2:us-east-1:905418198749:instance/i-072708190abd3d102",
+        "arn:aws:ec2:us-east-1:905418198749:volume/vol-03f00b3758be2f0c8",
+        "arn:aws:ec2:us-east-1:905418198749:security-group/sg-06f620dffedd9008f"
+      ]
+    },
+    {
+      "Sid": "Layer2IAMRoleByProjectTag",
+      "Effect": "Allow",
+      "Action": [
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:UpdateRole",
+        "iam:UpdateRoleDescription",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Project": "ecommerce-microsservicos"
+        }
+      }
+    },
+    {
+      "Sid": "Layer2IAMPassRoleToProjectServices",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "ec2.amazonaws.com",
+            "config.amazonaws.com",
+            "cloudtrail.amazonaws.com",
+            "ssm.amazonaws.com"
+          ],
+          "aws:ResourceTag/Project": "ecommerce-microsservicos"
+        }
+      }
+    },
+    {
+      "Sid": "Layer2CloudTrailMutativeByTag",
+      "Effect": "Allow",
+      "Action": [
+        "cloudtrail:UpdateTrail",
+        "cloudtrail:StartLogging",
+        "cloudtrail:StopLogging",
+        "cloudtrail:PutEventSelectors",
+        "cloudtrail:PutInsightSelectors",
+        "cloudtrail:AddTags",
+        "cloudtrail:RemoveTags"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Project": "ecommerce-microsservicos"
+        }
+      }
+    },
+    {
+      "Sid": "Layer3S3AuditBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:PutObject",
+        "s3:GetBucketAcl",
+        "s3:GetBucketPolicy",
+        "s3:PutBucketPolicy",
+        "s3:GetBucketTagging",
+        "s3:PutBucketTagging",
+        "s3:GetBucketVersioning",
+        "s3:PutBucketVersioning",
+        "s3:GetBucketLogging",
+        "s3:PutBucketLogging",
+        "s3:GetEncryptionConfiguration",
+        "s3:PutEncryptionConfiguration",
+        "s3:GetLifecycleConfiguration",
+        "s3:PutLifecycleConfiguration",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:PutBucketPublicAccessBlock"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ecommerce-microsservicos-audit-905418198749",
+        "arn:aws:s3:::ecommerce-microsservicos-audit-905418198749/*"
+      ]
+    },
+    {
+      "Sid": "Layer3ConfigDefaultRecorderAndPack",
+      "Effect": "Allow",
+      "Action": [
+        "config:PutConfigurationRecorder",
+        "config:DeleteConfigurationRecorder",
+        "config:StartConfigurationRecorder",
+        "config:StopConfigurationRecorder",
+        "config:PutDeliveryChannel",
+        "config:DeleteDeliveryChannel",
+        "config:DeliverConfigSnapshot",
+        "config:PutConformancePack",
+        "config:DeleteConformancePack",
+        "config:PutConfigRule",
+        "config:DeleteConfigRule",
+        "config:DeleteEvaluationResults",
+        "config:StartConfigRulesEvaluation",
+        "config:TagResource",
+        "config:UntagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Layer3BudgetsProject",
+      "Effect": "Allow",
+      "Action": [
+        "budgets:ModifyBudget",
+        "budgets:CreateBudgetAction",
+        "budgets:UpdateBudgetAction",
+        "budgets:DeleteBudgetAction",
+        "budgets:ExecuteBudgetAction"
+      ],
+      "Resource": "arn:aws:budgets::905418198749:budget/ecommerce-microsservicos-monthly-30usd*"
+    },
+    {
+      "Sid": "Layer3CreateServiceLinkedRole",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "iam:AWSServiceName": [
+            "config.amazonaws.com",
+            "ssm.amazonaws.com",
+            "support.amazonaws.com",
+            "trustedadvisor.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "Layer4EC2RunInstancesWithProjectTags",
+      "Effect": "Allow",
+      "Action": ["ec2:RunInstances"],
+      "Resource": [
+        "arn:aws:ec2:us-east-1:905418198749:instance/*",
+        "arn:aws:ec2:us-east-1:905418198749:volume/*",
+        "arn:aws:ec2:us-east-1:905418198749:network-interface/*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Project": "ecommerce-microsservicos"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": ["Project", "Environment", "ManagedBy", "Name"]
+        }
+      }
+    },
+    {
+      "Sid": "Layer4EC2RunInstancesUntaggable",
+      "Effect": "Allow",
+      "Action": ["ec2:RunInstances"],
+      "Resource": [
+        "arn:aws:ec2:us-east-1:905418198749:subnet/*",
+        "arn:aws:ec2:us-east-1:905418198749:security-group/*",
+        "arn:aws:ec2:us-east-1:905418198749:key-pair/*",
+        "arn:aws:ec2:us-east-1:905418198749:launch-template/*",
+        "arn:aws:ec2:::image/*",
+        "arn:aws:ec2:::snapshot/*"
+      ]
+    },
+    {
+      "Sid": "Layer4EC2CreateMutativeWithProjectTag",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateVolume",
+        "ec2:CreateSecurityGroup",
+        "ec2:AllocateAddress",
+        "ec2:CreateNetworkInterface",
+        "ec2:CreateSnapshot",
+        "ec2:CreateTags"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Project": "ecommerce-microsservicos"
+        }
+      }
+    },
+    {
+      "Sid": "Layer4IAMCreateRoleWithProjectTag",
+      "Effect": "Allow",
+      "Action": "iam:CreateRole",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Project": "ecommerce-microsservicos"
+        }
+      }
+    },
+    {
+      "Sid": "Layer4CloudTrailCreateWithProjectTag",
+      "Effect": "Allow",
+      "Action": "cloudtrail:CreateTrail",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Project": "ecommerce-microsservicos"
+        }
+      }
+    },
+    {
+      "Sid": "Layer4S3CreateBucketProjectPrefix",
+      "Effect": "Allow",
+      "Action": "s3:CreateBucket",
+      "Resource": "arn:aws:s3:::ecommerce-microsservicos-*"
+    },
+    {
+      "Sid": "Layer4BackfillTagsOnGappedResources",
+      "Effect": "Allow",
+      "Action": ["ec2:CreateTags", "ec2:DeleteTags"],
+      "Resource": [
+        "arn:aws:ec2:us-east-1:905418198749:instance/i-072708190abd3d102",
+        "arn:aws:ec2:us-east-1:905418198749:volume/vol-03f00b3758be2f0c8",
+        "arn:aws:ec2:us-east-1:905418198749:security-group/sg-06f620dffedd9008f",
+        "arn:aws:ec2:us-east-1:905418198749:network-interface/eni-03b0c211e0823308c"
+      ]
+    },
+    {
+      "Sid": "SSMSessionManagerNoTagCondition",
+      "Effect": "Allow",
+      "Action": ["ssm:StartSession", "ssm:TerminateSession", "ssm:ResumeSession"],
+      "Resource": [
+        "arn:aws:ec2:us-east-1:905418198749:instance/*",
+        "arn:aws:ssm:us-east-1::document/AWS-StartSSHSession",
+        "arn:aws:ssm:us-east-1::document/SSM-SessionManagerRunShell",
+        "arn:aws:ssm:us-east-1:905418198749:session/*"
+      ]
+    },
+    {
+      "Sid": "SSMSendCommandForOps",
+      "Effect": "Allow",
+      "Action": ["ssm:SendCommand", "ssm:CancelCommand"],
+      "Resource": [
+        "arn:aws:ec2:us-east-1:905418198749:instance/*",
+        "arn:aws:ssm:us-east-1::document/AWS-RunShellScript",
+        "arn:aws:ssm:us-east-1::document/AWS-RunPowerShellScript"
+      ]
+    },
+    {
+      "Sid": "Layer5DenyDangerousIAM",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateUser",
+        "iam:DeleteUser",
+        "iam:CreateAccessKey",
+        "iam:DeleteAccessKey",
+        "iam:UpdateAccessKey",
+        "iam:CreateLoginProfile",
+        "iam:DeleteLoginProfile",
+        "iam:UpdateLoginProfile",
+        "iam:ChangePassword",
+        "iam:CreateAccountAlias",
+        "iam:DeleteAccountAlias",
+        "iam:UpdateAccountPasswordPolicy",
+        "iam:DeleteAccountPasswordPolicy"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Layer5DenyDeleteRoleAndAttachedSelf",
+      "Effect": "Deny",
+      "Action": [
+        "iam:DeleteRole",
+        "iam:DeleteRolePermissionsBoundary",
+        "iam:PutRolePermissionsBoundary"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Layer5DenyOrganizationsAndAccount",
+      "Effect": "Deny",
+      "Action": [
+        "organizations:*",
+        "account:*",
+        "aws-portal:ModifyAccount",
+        "aws-portal:ModifyBilling",
+        "aws-portal:ModifyPaymentMethods"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Layer5DenySelfMutilationOfPermissionSet",
+      "Effect": "Deny",
+      "Action": [
+        "sso:DeletePermissionSet",
+        "sso:DeleteAccountAssignment",
+        "sso:DeleteInlinePolicyFromPermissionSet",
+        "sso:DetachManagedPolicyFromPermissionSet",
+        "sso:UpdatePermissionSet",
+        "sso:PutInlinePolicyToPermissionSet",
+        "sso:DeleteManagedApplicationInstance",
+        "sso:DetachCustomerManagedPolicyReferenceFromPermissionSet",
+        "sso:DeletePermissionsBoundaryFromPermissionSet",
+        "identitystore:DeleteUser",
+        "identitystore:DeleteGroup",
+        "identitystore:UpdateUser",
+        "identitystore:UpdateGroup"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Layer5DenyDeleteAuditInfra",
+      "Effect": "Deny",
+      "Action": [
+        "s3:DeleteBucket",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:StopLogging"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ecommerce-microsservicos-audit-905418198749",
+        "arn:aws:s3:::ecommerce-microsservicos-audit-905418198749/*",
+        "arn:aws:cloudtrail:us-east-1:905418198749:trail/ecommerce-microsservicos-management-trail"
+      ]
+    },
+    {
+      "Sid": "Layer5DenyKMSDangerous",
+      "Effect": "Deny",
+      "Action": [
+        "kms:DisableKey",
+        "kms:ScheduleKeyDeletion",
+        "kms:DeleteAlias",
+        "kms:DeleteCustomKeyStore"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

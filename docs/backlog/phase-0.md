@@ -224,21 +224,32 @@ Sem dependências externas — pode iniciar imediatamente.
   - Pré-requisito futuro pra qualquer ADR de compliance (LGPD/SOC 2) — audit trail centralizado existe sem retrabalho.
   - **Recursos AWS criados nesta sessão (`ManagedBy=manual`)**, todos listados em `aws-specs.md` "Recursos `ManagedBy=manual` que entrarão em state OpenTofu (P0-D1)": S3 bucket, CloudTrail trail, Config recorder, delivery channel, conformance pack, regra. Service-linked role `AWSServiceRoleForConfig` é gerenciada pela AWS — não importar.
 
-### P0-B6 — Escopar permission set IAM Identity Center (M)
+### P0-B6 — Escopar permission set IAM Identity Center (M) ✅ concluído em 2026-05-02
 
+- **Status:** concluído. Decisões + alternativas em **ADR-0012**; runbook reproduzível em `docs/runbooks/aws-permission-set-management.md`; policy JSON versionada em `infra/aws/iam-policies/EcommerceProjectAdminPolicy.json`; estado declarativo em `docs/infra/aws-specs.md` seção "IAM Identity Center".
 - **DoD:**
-  - Novo permission set `EcommerceProjectAdmin` (ou similar) substitui o uso default de `AdministratorAccess` para operação cotidiana
-  - Policy do permission set escopada a:
-    - Recursos com tag `Project=ecommerce-microsservicos` (via `aws:ResourceTag/Project` em condition); OU
-    - Lista enumerada de ARNs/recursos/serviços (EC2, EBS, EIP, SG, IAM Role específico, S3 buckets do projeto, CloudTrail, Config, Budgets) — escolha registrada em ADR específica peer desta tarefa
-  - `AdministratorAccess` permanece atribuído como **break-glass** (uso emergencial, com alarme via CloudTrail Insights ou EventBridge)
-  - Validação: `aws sts get-caller-identity` continua funcionando; uma operação fora do escopo (ex.: `aws s3 ls` em bucket sem tag) retorna `AccessDenied`
-  - Atualização de `docs/infra/aws-specs.md` seção "IAM Identity Center" com o novo permission set + procedimento de break-glass
-- **Dependências:** P0-B4 (recursos a escopar precisam estar inventariados); ideal **depois de P0-B5** (CloudTrail captura primeira ação fora-do-escopo se houver)
-- **Notas:**
-  - Resolve follow-up #5 do `aws-specs.md` (permissão broad)
-  - Materializa **ADR-0010** com exercício de IAM granular puro (least privilege, brief §0.1)
-  - **ADR específica nasce no PR desta tarefa** — escolha entre tag-based vs ARN-enumerated tem trade-offs (tag-based mais flexível pra recursos novos, ARN exige update toda vez que recurso novo entra; tag-based depende de tags consistentes — daí a ordem com P0-B5 ajuda)
+  - [x] Novo permission set `EcommerceProjectAdmin` substitui o uso default de `AdministratorAccess` (PS ARN `arn:aws:sso:::permissionSet/ssoins-72230cf4411d9bf7/ps-8b8093cc7c6e9d61`)
+  - [x] Policy do permission set escopada via **estratégia híbrida** (escolha registrada em ADR-0012):
+    - Tag-based (`aws:ResourceTag/Project=ecommerce-microsservicos`) para mutações em EC2/EBS/EIP/SG/NIC, IAM Role, CloudTrail Trail
+    - ARN-enumerated para recursos sensíveis sem tag-based confiável (audit S3 bucket, Config recorder/pack/rule, Budget do projeto)
+    - `aws:RequestTag` enforcement em `Create*` (faz tags policy ser enforced no IAM, não só por disciplina)
+    - Deny defensivo (Layer5) em `iam:CreateUser/DeleteRole`, `organizations:*`, `sso:Update*`, `kms:DisableKey`, delete do audit bucket/trail
+    - Backfill ARN-enumerado para recursos em gap (#1/#2/#3): `ec2:CreateTags` direto na EC2/EBS/SG/NIC do projeto
+  - [x] `AdministratorAccess` permanece atribuído como **break-glass** (sem alarm proativo nesta tarefa — CloudTrail registra uso reativamente; EventBridge alarm vira follow-up de Grupo H ou Phase 4)
+  - [x] Validação completa via 12 testes documentados no runbook — `get-caller-identity` retorna novo principal; mutações em recursos legacy retornam `AccessDenied`; SSM `start-session` continua funcionando; Layer5 Deny confirmado em `iam:CreateUser` e `organizations:*`; backfill de tags via `ec2:CreateTags` dry-run "would have succeeded"
+  - [x] Atualização de `docs/infra/aws-specs.md` seção "IAM Identity Center" — tabela com 2 permission sets + procedimento de break-glass + cobertura conhecida + dívidas conhecidas
+  - [x] Policy validada via **IAM Access Analyzer** (`aws accessanalyzer validate-policy`) — zero ERRORs, zero SECURITY_WARNINGs após 3 iterações de fix (`budgets:CreateBudget` inexistente, `sso-admin:*` namespace incorreto, `iam:PassRole` Resource `*` sem `iam:PassedToService`)
+- **Dependências:** P0-B4 (recursos inventariados), **P0-B5** (CloudTrail captura toda transição entre permission sets desde 2026-05-02 17:19 UTC)
+- **Notas de execução:**
+  - **Resolve follow-up #5 do `aws-specs.md`** — `AdministratorAccess` broad some do uso cotidiano. Princípio do menor privilégio (brief §0.1) materializado em IAM puro, não só em prosa.
+  - **Materializa ADR-0010** com exercício IAM granular puro — `aws:ResourceTag`, `aws:RequestTag`, `aws:TagKeys`, `iam:PassedToService`, `NotResource`, Deny defensivo. Skill universal AWS-native sem custo recorrente.
+  - **Pegadinha API:** `provision-permission-set` retorna 404 quando chamado **antes** de existir assignment. A primeira provisão é implícita via `create-account-assignment` — runbook documenta a ordem correta.
+  - **Pegadinha namespace IAM:** Identity Center actions usam prefixo `sso:*` no IAM, não `sso-admin:*` (que é namespace de console). IAM Access Analyzer pegou; corrigido antes do apply.
+  - **Pegadinha `budgets`:** não existem `budgets:CreateBudget`/`DeleteBudget` como actions IAM — `budgets:ModifyBudget` cobre create/update/delete. IAM Access Analyzer pegou; statement removido.
+  - **Sessão SSO existente reaproveitou cache** — não foi necessário novo `aws sso login` pra ativar profile novo (mesma SSO session `allysson` cobre ambos permission sets).
+  - **Dívida explícita confirmada:** `ec2:StopInstances` na EC2 retorna `AccessDenied` (gap #1 — EC2 sem tag `Project`). Resolução prevista em PR pré-D1 aplicando tags via `ec2:CreateTags` — operação **permitida pelo próprio `EcommerceProjectAdmin`** (Layer4BackfillTagsOnGappedResources), sem precisar break-glass.
+  - **Profile local adicionado:** `~/.aws/config` ganhou `[profile EcommerceProjectAdmin-905418198749]` apontando pra mesma `[sso-session allysson]`.
+  - **Recursos AWS criados nesta sessão (`ManagedBy=manual`)**, todos listados em `aws-specs.md` "Recursos `ManagedBy=manual`": permission set + inline policy + account assignment. Identity Center fica explicitamente **fora** do state OpenTofu (recurso humano, decisão prévia).
 
 ---
 

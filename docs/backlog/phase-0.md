@@ -165,13 +165,18 @@ Sem dependências externas — pode iniciar imediatamente.
   - **Hostnames resultantes substituem os de `meuapp.com` do brief original** em toda a documentação subsequente (P0-D2 a P0-D5, Grupo E hello-service, Grupo G observability admin URLs).
   - **Nada configurado em Page Rules / WAF Custom Rules / Workers / Turnstile / Logpush** — esses ficam pra Grupo D (P0-D1+) e Fase 1.
 
-### P0-B3 — GHCR e tokens (S)
+### P0-B3 — GHCR e tokens (S) ✅ concluído em 2026-05-02
 
+- **Status:** concluído em 2026-05-02. Política registrada em `docs/infra/ghcr.md`; primeiro push real virá em P0-F2 (hello-service).
 - **DoD:**
-  - GHCR habilitado para o repositório
-  - PAT do GitHub com `write:packages` criado (apenas se necessário; preferir `GITHUB_TOKEN` em workflows)
-  - Visibilidade dos pacotes definida (privado por default)
+  - [x] GHCR habilitado para o repositório — nasce automaticamente; namespace `ghcr.io/allysson-christopher/`
+  - [x] PAT do GitHub com `write:packages` criado (apenas se necessário; preferir `GITHUB_TOKEN` em workflows) — **descartado conscientemente:** P0-F2 vai usar `GITHUB_TOKEN` no workflow; pacotes públicos eliminam necessidade de PAT pra `docker pull`. Decisão registrada em `docs/infra/ghcr.md` "Auth para escrita"
+  - [x] Visibilidade dos pacotes definida — **public por default**, alinhada com ADR-0006 (repo público); aplicada por package após o primeiro push (procedimento documentado no state-doc)
 - **Dependências:** P0-B1
+- **Notas de execução:**
+  - **Pivot vs DoD original "privado por default":** o brief escrevia "privado por default", mas com repo público desde ADR-0006, manter imagem privada seria assimetria sem proteção real (qualquer um clona o repo e roda `docker build`). Trade-offs (build leak, metadata leak) mitigados por `.dockerignore` agressivo, multi-stage build e Trivy obrigatório (P0-F2 / P0-H3). Detalhes em `docs/infra/ghcr.md` seção "Política de visibilidade".
+  - **Documentação produzida:** `docs/infra/ghcr.md` — state-doc declarativo (identidade, política de visibilidade, mecanismo de auth, retention placeholder, lista de packages — vazia até P0-F2). Sem runbook separado: GHCR não tem superfície operacional comparável a Cloudflare (sem zona, NS, SSL mode); reproduzir é trivial (`gh api -X PATCH .../packages/container/<name> -f visibility=public` após primeiro push).
+  - **Aplicação real da política de visibilidade fica em P0-F2:** GitHub não permite "pré-marcar" um package que ainda não existe — o package nasce no primeiro `docker push` e a partir daí pode ser tornado público via `gh api` ou UI. P0-F2 vai aplicar `visibility=public` no primeiro push do hello-service.
 
 ### P0-B4 — Inventário e baseline AWS (M) ✅ parcialmente concluído em 2026-05-01
 

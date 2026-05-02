@@ -124,6 +124,21 @@ Mês 3-6+:      max-age=1yr; ligar includeSubDomains se TUDO subdomínio HTTPS
 Ano 1+:        max-age=2yr; submissão à hstspreload.org
 ```
 
+**Revisão concreta planejada — ~2026-06-01:**
+
+Trigger: ~30 dias após habilitação do HSTS (2026-05-02). Não está agendada
+como agente automático — checklist manual pra rodar quando outra tarefa de
+infra trouxer o `cloudflare.md` à atenção, ou quando lembrar:
+
+- [ ] `dig +short chatdelta.cloud @1.1.1.1` ainda retorna IPs CF (proxy ok, EIP escondido)?
+- [ ] Origem responde HTTPS válido (depende de P0-D3 ter entrado): `curl -I https://staging.chatdelta.cloud/` retorna 2xx/3xx (não mais 525/526)?
+- [ ] Nenhum subdomínio do `chatdelta.cloud` foi adicionado em HTTP-only que `includeSubDomains=On` quebraria?
+
+Se os 3 forem ✅: subir `max-age` para 6 meses (15552000) — manter
+`includeSubDomains=Off` e `preload=Off` por enquanto. Se algum for ❌:
+manter status quo e revisitar quando o bloqueio sair (provavelmente o
+item 2 — depende de P0-D3 / Traefik + Let's Encrypt).
+
 **Recovery:** se HSTS configurado errado trancar visitantes, browser cache
 respeita `max-age` — não dá pra desligar remotamente. Único caminho: reduzir
 `max-age` e esperar; ou usuário limpar HSTS cache local

@@ -11,7 +11,7 @@
 > ser importados pra state OpenTofu em **P0-D1** (`tofu import`); este doc
 > permanece como espelho legível por humano após o import.
 >
-> **Última atualização:** 2026-05-02 (encerramento de P0-B4).
+> **Última atualização:** 2026-05-02 (cleanup pré-D1 — backfill de tags pelos 5 recursos legacy via `EcommerceProjectAdmin`; gaps 1, 2 e 4 fechados).
 
 ---
 
@@ -121,23 +121,26 @@ export AWS_PROFILE=AdministratorAccess-905418198749
 
 ## EC2
 
-| Campo              | Valor                                                       |
-| ------------------ | ----------------------------------------------------------- |
-| **Instance ID**    | `i-072708190abd3d102`                                       |
-| **Tipo**           | `t3.micro` (1 vCPU burstable, 916 MiB RAM, sem swap padrão) |
-| **AMI**            | `ami-098e39bafa7e7303d` (Amazon Linux 2023)                 |
-| **Plataforma**     | Amazon Linux 2023                                           |
-| **AZ**             | `us-east-1b`                                                |
-| **VPC**            | `vpc-07c616c1c8e449677` (default VPC da conta)              |
-| **IP privado**     | `172.31.36.245`                                             |
-| **IP público**     | `32.193.69.140` (via EIP — ver abaixo)                      |
-| **Launch time**    | 2026-04-30 21:18 UTC                                        |
-| **Lifecycle**      | **Ephemeral** — `stop` quando não em uso                    |
-| **EBS-optimized**  | `true`                                                      |
-| **Root device**    | `/dev/xvda`                                                 |
-| **IMDSv2**         | `HttpTokens=required` (v1 desabilitado)                     |
-| **IMDS hop limit** | `2`                                                         |
-| **Tag `Name`**     | `loja-microsservicos` (legado — ver follow-ups)             |
+| Campo                 | Valor                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Instance ID**       | `i-072708190abd3d102`                                                                                    |
+| **Tipo**              | `t3.micro` (1 vCPU burstable, 916 MiB RAM, sem swap padrão)                                              |
+| **AMI**               | `ami-098e39bafa7e7303d` (Amazon Linux 2023)                                                              |
+| **Plataforma**        | Amazon Linux 2023                                                                                        |
+| **AZ**                | `us-east-1b`                                                                                             |
+| **VPC**               | `vpc-07c616c1c8e449677` (default VPC da conta)                                                           |
+| **IP privado**        | `172.31.36.245`                                                                                          |
+| **IP público**        | `32.193.69.140` (via EIP — ver abaixo)                                                                   |
+| **Launch time**       | 2026-04-30 21:18 UTC                                                                                     |
+| **Lifecycle**         | **Ephemeral** — `stop` quando não em uso                                                                 |
+| **EBS-optimized**     | `true`                                                                                                   |
+| **Root device**       | `/dev/xvda`                                                                                              |
+| **IMDSv2**            | `HttpTokens=required` (v1 desabilitado)                                                                  |
+| **IMDS hop limit**    | `2`                                                                                                      |
+| **Tag `Name`**        | `loja-microsservicos` (legado — preservado intencionalmente; rename via recreate em P0-D1, follow-up #7) |
+| **Tag `Project`**     | `ecommerce-microsservicos` ✅                                                                            |
+| **Tag `Environment`** | `sandbox` ✅                                                                                             |
+| **Tag `ManagedBy`**   | `manual` ✅                                                                                              |
 
 **Lifecycle ephemeral em prática:**
 
@@ -156,17 +159,20 @@ não basta GET ingenuo a `169.254.169.254`).
 
 ### Root volume (atual)
 
-| Campo                   | Valor                                                   |
-| ----------------------- | ------------------------------------------------------- |
-| **Volume ID**           | `vol-03f00b3758be2f0c8`                                 |
-| **Tipo**                | gp3                                                     |
-| **Tamanho**             | 8 GiB                                                   |
-| **IOPS / throughput**   | 3000 IOPS / 125 MB/s (baseline gp3, sem cobrança extra) |
-| **Encryption at rest**  | **disabled** (default da AMI; ver follow-ups)           |
-| **AZ**                  | `us-east-1b`                                            |
-| **Attach point**        | `/dev/xvda`                                             |
-| **DeleteOnTermination** | `true` — terminate da EC2 destrói o root                |
-| **Tags**                | nenhuma (ver follow-ups)                                |
+| Campo                   | Valor                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| **Volume ID**           | `vol-03f00b3758be2f0c8`                                                                   |
+| **Tipo**                | gp3                                                                                       |
+| **Tamanho**             | 8 GiB                                                                                     |
+| **IOPS / throughput**   | 3000 IOPS / 125 MB/s (baseline gp3, sem cobrança extra)                                   |
+| **Encryption at rest**  | **disabled** (default da AMI; ver follow-up #3 — adiado pra Phase 2 ou recreate em P0-D1) |
+| **AZ**                  | `us-east-1b`                                                                              |
+| **Attach point**        | `/dev/xvda`                                                                               |
+| **DeleteOnTermination** | `true` — terminate da EC2 destrói o root                                                  |
+| **Tag `Project`**       | `ecommerce-microsservicos` ✅                                                             |
+| **Tag `Environment`**   | `sandbox` ✅                                                                              |
+| **Tag `ManagedBy`**     | `manual` ✅                                                                               |
+| **Tag `Name`**          | `ecommerce-ec2-root` ✅                                                                   |
 
 ### Volumes adicionais
 
@@ -238,14 +244,17 @@ para ele.
 
 ## Security Group
 
-| Campo        | Valor                                            |
-| ------------ | ------------------------------------------------ |
-| **Group ID** | `sg-06f620dffedd9008f`                           |
-| **Nome**     | `launch-wizard-2` (legado — ver follow-ups)      |
-| **VPC**      | `vpc-07c616c1c8e449677`                          |
-| **Ingress**  | **vazio** (zero portas inbound)                  |
-| **Egress**   | `all/all → 0.0.0.0/0` (necessário pro SSM agent) |
-| **Tags**     | **nenhuma** (ver follow-ups)                     |
+| Campo                 | Valor                                                                                        |
+| --------------------- | -------------------------------------------------------------------------------------------- |
+| **Group ID**          | `sg-06f620dffedd9008f`                                                                       |
+| **Nome do SG**        | `launch-wizard-2` (legado — rename exige recreate; follow-up #7 em P0-D1)                    |
+| **VPC**               | `vpc-07c616c1c8e449677`                                                                      |
+| **Ingress**           | **vazio** (zero portas inbound)                                                              |
+| **Egress**            | `all/all → 0.0.0.0/0` (necessário pro SSM agent)                                             |
+| **Tag `Project`**     | `ecommerce-microsservicos` ✅                                                                |
+| **Tag `Environment`** | `sandbox` ✅                                                                                 |
+| **Tag `ManagedBy`**   | `manual` ✅                                                                                  |
+| **Tag `Name`**        | `ecommerce-ec2-sandbox-sg` ✅ (tag Name; **`Nome do SG`** acima permanece `launch-wizard-2`) |
 
 **Postura de rede:**
 
@@ -267,16 +276,16 @@ para ele.
 
 ## IAM Role + Instance Profile
 
-| Campo                     | Valor                                                                                       |
-| ------------------------- | ------------------------------------------------------------------------------------------- |
-| **Role name**             | `EcommerceEC2SSMRole`                                                                       |
-| **Role ARN**              | `arn:aws:iam::905418198749:role/EcommerceEC2SSMRole`                                        |
-| **Instance Profile name** | `EcommerceEC2SSMRole` (mesmo nome, wrapping API legado)                                     |
-| **Instance Profile ARN**  | `arn:aws:iam::905418198749:instance-profile/EcommerceEC2SSMRole`                            |
-| **Trust principal**       | `ec2.amazonaws.com`                                                                         |
-| **Attached policies**     | `arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore` (managed AWS)                        |
-| **Tags Role**             | `Project=ecommerce-microsservicos`, `ManagedBy=manual` (sem `Environment` — ver follow-ups) |
-| **Created**               | 2026-05-01 22:08 UTC                                                                        |
+| Campo                     | Valor                                                                                  |
+| ------------------------- | -------------------------------------------------------------------------------------- |
+| **Role name**             | `EcommerceEC2SSMRole`                                                                  |
+| **Role ARN**              | `arn:aws:iam::905418198749:role/EcommerceEC2SSMRole`                                   |
+| **Instance Profile name** | `EcommerceEC2SSMRole` (mesmo nome, wrapping API legado)                                |
+| **Instance Profile ARN**  | `arn:aws:iam::905418198749:instance-profile/EcommerceEC2SSMRole`                       |
+| **Trust principal**       | `ec2.amazonaws.com`                                                                    |
+| **Attached policies**     | `arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore` (managed AWS)                   |
+| **Tags Role**             | `Project=ecommerce-microsservicos` ✅, `Environment=sandbox` ✅, `ManagedBy=manual` ✅ |
+| **Created**               | 2026-05-01 22:08 UTC                                                                   |
 
 A `AmazonSSMManagedInstanceCore` cobre o mínimo pro Session Manager + Run
 Command + Patch Manager funcionarem (sem permissões a mais). Role foi
@@ -452,25 +461,28 @@ Environment={sandbox|staging|prod}
 ManagedBy={manual|terraform|ansible}
 ```
 
-**Estado atual de conformidade** (espelho honesto, 2026-05-02):
+**Estado atual de conformidade** (espelho honesto, 2026-05-02 pós-cleanup):
 
-| Recurso                                               | Project | Environment | ManagedBy | Name                   | Status             |
-| ----------------------------------------------------- | ------- | ----------- | --------- | ---------------------- | ------------------ |
-| EIP `eipalloc-03c82731695e04b80`                      | ✅      | ✅          | ✅        | ✅                     | **OK**             |
-| S3 audit bucket                                       | ✅      | ✅          | ✅        | ✅                     | **OK**             |
-| CloudTrail trail `ecommerce-...-management-trail`     | ✅      | ✅          | ✅        | ✅                     | **OK**             |
-| EC2 `i-072708190abd3d102`                             | ❌      | ❌          | ❌        | ⚠️ legado              | **Gap**            |
-| Root EBS `vol-03f00b3758be2f0c8`                      | ❌      | ❌          | ❌        | ❌                     | **Gap**            |
-| Security Group `sg-06f620dffedd9008f`                 | ❌      | ❌          | ❌        | ❌ (`launch-wizard-2`) | **Gap**            |
-| IAM Role `EcommerceEC2SSMRole`                        | ✅      | ❌          | ✅        | n/a                    | **Gap parcial**    |
-| Instance Profile `EcommerceEC2SSMRole`                | n/a     | n/a         | n/a       | n/a                    | (não suporta tags) |
-| AWS Budget `ecommerce-...-monthly-30usd`              | n/a     | n/a         | n/a       | n/a                    | (não suporta tags) |
-| AWS Config recorder/delivery channel/conformance pack | n/a     | n/a         | n/a       | n/a                    | (não suporta tags) |
+| Recurso                                               | Project | Environment | ManagedBy | Name                                          | Status                                       |
+| ----------------------------------------------------- | ------- | ----------- | --------- | --------------------------------------------- | -------------------------------------------- |
+| EIP `eipalloc-03c82731695e04b80`                      | ✅      | ✅          | ✅        | ✅                                            | **OK**                                       |
+| S3 audit bucket                                       | ✅      | ✅          | ✅        | ✅                                            | **OK**                                       |
+| CloudTrail trail `ecommerce-...-management-trail`     | ✅      | ✅          | ✅        | ✅                                            | **OK**                                       |
+| EC2 `i-072708190abd3d102`                             | ✅      | ✅          | ✅        | ⚠️ `loja-microsservicos` (legado intencional) | **OK**                                       |
+| Root EBS `vol-03f00b3758be2f0c8`                      | ✅      | ✅          | ✅        | ✅ `ecommerce-ec2-root`                       | **OK**                                       |
+| Security Group `sg-06f620dffedd9008f`                 | ✅      | ✅          | ✅        | ✅ `ecommerce-ec2-sandbox-sg` (tag Name)      | **OK** (rename do nome do SG = follow-up #7) |
+| NIC `eni-03b0c211e0823308c`                           | ✅      | ✅          | ✅        | ✅ `ecommerce-ec2-eni`                        | **OK**                                       |
+| IAM Role `EcommerceEC2SSMRole`                        | ✅      | ✅          | ✅        | n/a                                           | **OK**                                       |
+| Permission Set `EcommerceProjectAdmin`                | ✅      | ✅          | ✅        | n/a                                           | **OK**                                       |
+| Instance Profile `EcommerceEC2SSMRole`                | n/a     | n/a         | n/a       | n/a                                           | (não suporta tags)                           |
+| AWS Budget `ecommerce-...-monthly-30usd`              | n/a     | n/a         | n/a       | n/a                                           | (não suporta tags)                           |
+| AWS Config recorder/delivery channel/conformance pack | n/a     | n/a         | n/a       | n/a                                           | (não suporta tags)                           |
 
-Gaps são tracked em **Follow-ups conhecidos** abaixo. **Detecção automática
-desses gaps pela rule `required-tags-Project`** está ativa desde 2026-05-02
-(seção "Audit & Compliance" acima) — Config dashboard mostra NON_COMPLIANT
-em tempo quase real para os 4 recursos do projeto sem tags completas.
+**Detecção automática via Config rule `required-tags-Project`**: 4 dos 4 recursos
+do projeto cobertos pela rule ficaram **COMPLIANT** após o backfill (validado
+em 2026-05-02 via `start-config-rules-evaluation` + `get-compliance-details-by-config-rule`).
+Os 2 NON_COMPLIANT permanentes (default SGs `sg-0552b53b7019d8285` e
+`sg-08e5ae3785b5210df` da default VPC) seguem irredutíveis — registrados em ADR-0011.
 
 ---
 
@@ -480,22 +492,23 @@ Lista honesta de divergências entre o estado real e a política/intenção
 declarada. **Nenhum é blocker para fechar P0-B4** — todos serão endereçados
 em PRs específicos antes ou durante P0-D1 (import OpenTofu).
 
-| #   | Item                                                                                                                  | Onde resolver                                                                                 | Severidade                                                                                                               | Auto-detectado?                                                                                      |
-| --- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| 1   | EC2 sem tags `Project`/`Environment`/`ManagedBy`; tag `Name=loja-microsservicos` é legada do nome anterior do projeto | PR pré-D1: `aws ec2 create-tags`                                                              | baixa (cosmético + cleanup tooling)                                                                                      | ✅ Config rule `required-tags-Project`                                                               |
-| 2   | Security Group sem tags + nome `launch-wizard-2`                                                                      | PR pré-D1: `create-tags` (renomear SG exige recriar — adiar pra D1)                           | baixa                                                                                                                    | ✅ Config rule `required-tags-Project`                                                               |
-| 3   | Root EBS sem tags + **encryption-at-rest disabled**                                                                   | PR específico: snapshot → criar volume encrypted KMS → swap; ou encarar no recreate da Fase 2 | **média** — encryption-at-rest é defense in depth (brief §0.1); mitigação parcial: nada sensível em disco hoje (Phase 0) | ✅ tags via Config rule; encryption via conformance pack futuro (Operational-Best-Practices-for-EBS) |
-| 4   | IAM Role sem tag `Environment`                                                                                        | PR pré-D1: `aws iam tag-role`                                                                 | baixa                                                                                                                    | ⚠️ parcialmente — regra exige tag `Project` (presente); falta de `Environment` não é flaggada        |
-| 5   | ~~Permission set `AdministratorAccess` ainda broad~~ **RESOLVIDO em 2026-05-02 via P0-B6 / ADR-0012**                 | n/a (fechado)                                                                                 | n/a                                                                                                                      | n/a                                                                                                  |
-| 6   | Logging detalhado de sessões SSM (S3/CloudWatch)                                                                      | Grupo H ou tarefa específica                                                                  | baixa (compliance futuro)                                                                                                | n/a (não é um gap de drift; é feature ausente)                                                       |
-| 7   | SG `launch-wizard-2` rename → algo descritivo (`ecommerce-ec2-sandbox-sg`)                                            | P0-D1 (recriar via `tofu`)                                                                    | baixa                                                                                                                    | n/a (rename só via recreate)                                                                         |
+| #   | Item                                                                                                                                                                                                                                                                  | Onde resolver                                                                                 | Severidade                                                                                                                | Auto-detectado?                                                                                   |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| 1   | ~~EC2 sem tags `Project`/`Environment`/`ManagedBy`~~ **RESOLVIDO em 2026-05-02 via cleanup pré-D1 (PR `chore/infra-backfill-tags-pre-d1`)**. Tag `Name=loja-microsservicos` preservada como legado intencional — rename via recreate em P0-D1 (item #7).              | n/a (fechado)                                                                                 | n/a                                                                                                                       | n/a                                                                                               |
+| 2   | ~~Security Group sem tags~~ **RESOLVIDO em 2026-05-02 via cleanup pré-D1**. Nome do SG `launch-wizard-2` permanece (rename = item #7).                                                                                                                                | n/a (fechado pra tags)                                                                        | n/a                                                                                                                       | n/a                                                                                               |
+| 3   | Root EBS **encryption-at-rest disabled** (tags resolvidas em 2026-05-02). Encryption não é resolvível por `create-tags` — exige snapshot → criar volume encrypted KMS → swap, com EC2 stopped.                                                                        | Adiado pra Phase 2 ou recreate via OpenTofu em P0-D1                                          | **média** — encryption-at-rest é defense in depth (brief §0.1); mitigação parcial: nada sensível em disco hoje (Phase 0)  | ✅ encryption via conformance pack futuro (Operational-Best-Practices-for-EBS), tags já COMPLIANT |
+| 4   | ~~IAM Role sem tag `Environment`~~ **RESOLVIDO em 2026-05-02 via cleanup pré-D1**.                                                                                                                                                                                    | n/a (fechado)                                                                                 | n/a                                                                                                                       | n/a                                                                                               |
+| 5   | ~~Permission set `AdministratorAccess` ainda broad~~ **RESOLVIDO em 2026-05-02 via P0-B6 / ADR-0012**                                                                                                                                                                 | n/a (fechado)                                                                                 | n/a                                                                                                                       | n/a                                                                                               |
+| 6   | Logging detalhado de sessões SSM (S3/CloudWatch)                                                                                                                                                                                                                      | Grupo H ou tarefa específica                                                                  | baixa (compliance futuro)                                                                                                 | n/a (não é um gap de drift; é feature ausente)                                                    |
+| 7   | SG `launch-wizard-2` rename → algo descritivo (`ecommerce-ec2-sandbox-sg`)                                                                                                                                                                                            | P0-D1 (recriar via `tofu`)                                                                    | baixa                                                                                                                     | n/a (rename só via recreate)                                                                      |
+| 8   | `EcommerceProjectAdmin` policy (ADR-0012) **não cobre `config:BatchGetResourceConfig` na Layer1 ReadOnly broad** — descoberto durante cleanup pré-D1 ao tentar `aws configservice batch-get-resource-config`. Outras leituras de Config (Describe/Get/List) cobertas. | PR específico expandindo Layer1 da policy; aplicar via `put-inline-policy-to-permission-set`. | baixa (debug/observability tool; não bloqueia fluxo crítico — alternativa via `get-resource-config-history` está coberta) | ❌ não detectável por Config rule de tag                                                          |
 
 **Ordem sugerida:**
 
-- Itens 1, 2, 4 são `aws ... create-tags` — 1 PR rápido, baixo risco.
-- Item 3 (encryption do root) merece PR + body explicando trade-off de
-  recreate; pode caber junto com os items 1/2/4 ou separado.
-- Itens 5, 6, 7 esperam suas tarefas naturais.
+- ~~Itens 1, 2, 4 (cleanup de tags via `create-tags`)~~ — fechados em 2026-05-02.
+- Item 3 (encryption do root) merece PR específico ou recreate em P0-D1 — adiado por trade-off custo/valor explícito acima.
+- Item 8 (policy gap descoberto) — PR pequeno expandindo Layer1; pode ser agrupado com qualquer outra ADR Phase 2 que mexer na policy.
+- Itens 6, 7 esperam suas tarefas naturais.
 
 ---
 

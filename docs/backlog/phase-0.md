@@ -178,9 +178,9 @@ Sem dependências externas — pode iniciar imediatamente.
   - **Documentação produzida:** `docs/infra/ghcr.md` — state-doc declarativo (identidade, política de visibilidade, mecanismo de auth, retention placeholder, lista de packages — vazia até P0-F2). Sem runbook separado: GHCR não tem superfície operacional comparável a Cloudflare (sem zona, NS, SSL mode); reproduzir é trivial (`gh api -X PATCH .../packages/container/<name> -f visibility=public` após primeiro push).
   - **Aplicação real da política de visibilidade fica em P0-F2:** GitHub não permite "pré-marcar" um package que ainda não existe — o package nasce no primeiro `docker push` e a partir daí pode ser tornado público via `gh api` ou UI. P0-F2 vai aplicar `visibility=public` no primeiro push do hello-service.
 
-### P0-B4 — Inventário e baseline AWS (M) ✅ parcialmente concluído em 2026-05-01
+### P0-B4 — Inventário e baseline AWS (M) ✅ concluído em 2026-05-02
 
-- **Status:** núcleo concluído nesta sessão (auth + EC2 + SSM + Budget); pendentes Elastic IP, EBS persistente e doc de specs.
+- **Status:** concluído. Núcleo (auth + EC2 + SSM + Budget) em 2026-05-01; EIP em 2026-05-02 (durante P0-B2); doc de specs e decisão consciente de adiar EBS persistente em 2026-05-02.
 - **DoD:**
   - [x] Conta AWS confirmada e acessível (account `905418198749`, home region `us-east-1` para Identity Center — não muda sem deletar)
   - [x] EC2 inicial provisionada (`i-072708190abd3d102`, `t3.micro`, AL2023 2023.11.20260413, `us-east-1b`)
@@ -191,15 +191,17 @@ Sem dependências externas — pode iniciar imediatamente.
   - [x] IAM Role + Instance Profile `EcommerceEC2SSMRole` (policy `AmazonSSMManagedInstanceCore`) criados e anexados à EC2
   - [x] SSM Session Manager funcional — `session-manager-plugin` v1.2.814.0 em `~/.local/bin/`; sessão interativa validada; `aws ssm send-command` validado end-to-end
   - [x] Security Group `sg-06f620dffedd9008f` hardenizado — ingress `22/tcp ← 0.0.0.0/0` revogado (SSH público fechado; sshd interno preservado)
-  - [x] Tags policy aplicada manualmente: `Project=ecommerce-microsservicos`, `ManagedBy=manual` em recursos criados
-  - [ ] **Elastic IP** alocado e associado à EC2 (pré-requisito de P0-B2; não alocado nesta sessão)
-  - [ ] **EBS volume persistente** para state separado do root (pode ser P0-C5 ou quando primeiro stateful service entrar)
-  - [ ] `docs/infra/aws-specs.md` com inventário (instance ID, AMI, EIP, EBS, IAM resources, custo mensal estimado)
+  - [x] Tags policy aplicada manualmente: `Project=ecommerce-microsservicos`, `ManagedBy=manual` em recursos criados (estado real e gaps registrados em `docs/infra/aws-specs.md` seção "Tags policy")
+  - [x] **Elastic IP** alocado e associado à EC2 — `32.193.69.140` (`eipalloc-03c82731695e04b80`, `eipassoc-0e14542cccf1bb90c`), alocado em 2026-05-02 como pré-requisito de P0-B2 (antes da criação dos registros DNS no Cloudflare)
+  - [x] **EBS volume persistente** para state separado do root — **decisão consciente de adiar** registrada em ADR-0008 e em `docs/infra/aws-specs.md` seção "Volumes adicionais": volume não será criado especulativamente; nasce com o primeiro consumidor real (P0-C5 ou primeiro stateful service em Grupo G/Fase 1). Política default registrada (gp3, encryption KMS enabled, tags completas, DeleteOnTermination=false)
+  - [x] `docs/infra/aws-specs.md` com inventário completo — conta, Identity Center, EC2, EBS root + política pra novos volumes, EIP, SG, IAM, SSM, Budget, tags policy com gaps explícitos, custo estimado, lista canônica de imports pra P0-D1
 - **Dependências:** —
 - **Notas de execução:**
   - Tarefa originalmente "Verificar acesso à VPS Hostinger" — reescrita após pivot arquitetural registrado em **ADR-0008** (AWS EC2 efêmera) e **ADR-0009** (SSM Session Manager).
   - Recursos AWS criados manualmente nesta sessão entram com tag `ManagedBy=manual`; serão importados pra state OpenTofu em **P0-D1** (`tofu import`), com a tag mudando para `terraform` no mesmo PR.
   - Chave SSH `loja-microsservicos.pem` movida do diretório do repo para `~/.ssh/` (`chmod 400`); permanece como fallback emergencial caso SSM quebre.
+  - **Sem ADR para "gp3 vs gp2":** decisão default pequena demais, registrada como nota em `aws-specs.md` ("Política default para volumes novos"). ADR nasce em P0-C5 se a escolha real trouxer surpresa (io2, múltiplos volumes, snapshots não-triviais).
+  - **Gaps de conformidade documentados honestamente:** EC2/SG/Root EBS sem tags policy completa, root EBS sem encryption-at-rest, SG nome `launch-wizard-2` legado. Itens listados em `aws-specs.md` "Follow-ups conhecidos" como dívida explícita — endereçáveis em PRs específicos antes ou durante P0-D1, **não bloqueiam o fechamento desta tarefa**.
 
 ---
 

@@ -280,6 +280,112 @@ rodando inesperado.
 
 ---
 
+## Audit & Compliance
+
+> **Habilitado em 2026-05-02 via P0-B5.** Decisões + alternativas em
+> ADR-0011; reproduzir do zero via `docs/runbooks/aws-audit-baseline.md`.
+
+### S3 audit bucket
+
+| Campo               | Valor                                                                                                                                                      |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Bucket**          | `ecommerce-microsservicos-audit-905418198749`                                                                                                              |
+| **Region**          | `us-east-1`                                                                                                                                                |
+| **Encryption**      | SSE-S3 (AES-256, managed pelo S3); `BlockedEncryptionTypes=SSE-C`                                                                                          |
+| **Versioning**      | Enabled                                                                                                                                                    |
+| **Public access**   | Bloqueado nas 4 dimensões (BlockPublicAcls + IgnorePublicAcls + BlockPublicPolicy + RestrictPublicBuckets)                                                 |
+| **Lifecycle**       | 90d Standard → 365d Glacier IR → expirar (455d totais); transitions/expiration aplicados também a noncurrent versions; AbortIncompleteMultipartUpload=7d   |
+| **Bucket policy**   | 7 statements: 5 Allow para CloudTrail/Config services nos respectivos prefixos; 1 Deny para non-SSL; 1 Deny para `s3:DeleteObject*` por qualquer principal |
+| **Tags**            | Project, Environment=sandbox, ManagedBy=manual, Name=ecommerce-audit-bucket                                                                                |
+| **Prefixos em uso** | `cloudtrail/AWSLogs/905418198749/...` (CloudTrail); `config/AWSLogs/905418198749/Config/...` (AWS Config)                                                  |
+
+> **Pegadinha conhecida:** lifecycle expiration **continua funcionando**
+> mesmo com Deny `s3:DeleteObject*` na policy — expiration é operação
+> interna do S3 sem IAM principal. A Deny só afeta delete iniciado por
+> usuário/role (defensa contra delete acidental). Pra deletar manual em
+> emergência, primeiro remover essa statement (operação logada).
+
+### CloudTrail trail
+
+| Campo                       | Valor                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| **Nome**                    | `ecommerce-microsservicos-management-trail`                                                 |
+| **ARN**                     | `arn:aws:cloudtrail:us-east-1:905418198749:trail/ecommerce-microsservicos-management-trail` |
+| **Multi-region**            | `true`                                                                                      |
+| **Include global services** | `true` (IAM, STS, CloudFront, Route 53)                                                     |
+| **Eventos**                 | Management read+write apenas — sem data events, sem Insights                                |
+| **Log file validation**     | Enabled (digest assinado por hora)                                                          |
+| **Destino**                 | `s3://ecommerce-microsservicos-audit-905418198749/cloudtrail/`                              |
+| **Logging**                 | Active desde 2026-05-02 17:19:27 UTC                                                        |
+| **Tags**                    | Project, Environment=sandbox, ManagedBy=manual, Name=ecommerce-management-trail             |
+
+**Quando ativar data events / Insights:**
+
+- **Data events** quando primeiro bucket de dados real do projeto entrar
+  (Phase 1 — backups Postgres, uploads de cliente, etc.). Custo $0.10/100k
+  events; controlado por scope (selector pra buckets específicos do projeto).
+- **Insights** quando volume de chamadas API tiver baseline estável
+  (~Phase 1 estável + Phase 2). Custo $0.35/100k analyzed; sem baseline,
+  vira alerta ruidoso em conta nova.
+
+### AWS Config
+
+| Campo                      | Valor                                                                                          |
+| -------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Recorder**               | `default`                                                                                      |
+| **Recording strategy**     | `ALL_SUPPORTED_RESOURCE_TYPES` + `includeGlobalResourceTypes=true`                             |
+| **Service-linked role**    | `arn:aws:iam::905418198749:role/aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig` |
+| **Delivery channel**       | `default` → `s3://ecommerce-microsservicos-audit-905418198749/config/`                         |
+| **Snapshot delivery freq** | 24h                                                                                            |
+| **Status**                 | recording=true, lastStatus=SUCCESS (snapshot 2026-05-02 17:20 UTC)                             |
+
+#### Conformance pack
+
+| Campo              | Valor                                                                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Nome**           | `ecommerce-OBP-EC2`                                                                                                                                           |
+| **ARN**            | `arn:aws:config:us-east-1:905418198749:conformance-pack/ecommerce-OBP-EC2/conformance-pack-ctqux7q7m`                                                         |
+| **Template fonte** | `Operational-Best-Practices-for-EC2.yaml` do repo `awslabs/aws-config-rules` (master branch)                                                                  |
+| **Customizações**  | Nenhuma (template AWS-managed aplicado as-is)                                                                                                                 |
+| **Regras**         | ~10 best-practices EC2 (`ec2-imdsv2-check`, `restricted-ssh`, `incoming-ssh-disabled`, `instance-managed-by-systems-manager`, `ec2-volume-inuse-check`, etc.) |
+
+#### Regra customizada `required-tags-Project`
+
+| Campo                | Valor                                                                                                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Source**           | AWS managed (`SourceIdentifier=REQUIRED_TAGS`)                                                                                                                          |
+| **Input parameters** | `tag1Key=Project`, `tag1Value=ecommerce-microsservicos`                                                                                                                 |
+| **Scope**            | 7 tipos: `AWS::EC2::Instance`, `AWS::EC2::Volume`, `AWS::EC2::SecurityGroup`, `AWS::EC2::NetworkInterface`, `AWS::EC2::EIP`, `AWS::IAM::Role`, `AWS::CloudTrail::Trail` |
+| **State**            | ACTIVE                                                                                                                                                                  |
+
+Estado de compliance pós-scope (snapshot 2026-05-02):
+
+| Status                                                    | Recursos                                                                                                                                                                                                                                                                                         |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **NON_COMPLIANT**                                         | `i-072708190abd3d102` (EC2 do projeto, gap #1), `eni-03b0c211e0823308c` (NIC), `sg-06f620dffedd9008f` (SG do projeto, gap #2), `vol-03f00b3758be2f0c8` (Root EBS, gap #3 parcial), `sg-0552b53b7019d8285` + `sg-08e5ae3785b5210df` (default SGs da default VPC — irredutíveis sem deletar a VPC) |
+| **COMPLIANT** (esperado após inventário Config completar) | EIP `eipalloc-03c82731695e04b80`, IAM Role `EcommerceEC2SSMRole`, Trail criado nesta sessão                                                                                                                                                                                                      |
+
+> **Resource types não cobertos hoje:** S3 buckets do projeto futuro
+> (Phase 1) ficam **fora** do scope dessa regra porque incluir
+> `AWS::S3::Bucket` capturaria 7 buckets legacy não relacionados ao
+> projeto na conta. Cobertura via custom rule (Lambda) com filtro de
+> nome — fica para Phase 1 quando o primeiro bucket de dados nascer.
+
+### Achados notáveis
+
+- **Conta compartilhada com legacy.** A conta `905418198749` tem 7
+  buckets S3 pré-existentes não relacionados ao projeto, 2 ACM
+  certificates pré-existentes, e a default VPC inteira da AWS. Isso
+  motivou o scope explícito da regra `required-tags-Project` —
+  detalhado no histórico de design da ADR-0011.
+- **2 SGs default da default VPC são NON_COMPLIANT permanentes.**
+  AWS default VPC nasce sem tags em seus SGs default; aplicar tag
+  `Project=ecommerce-microsservicos` neles seria fraude (não são "do
+  projeto"). Aceito como noise irredutível até decidir migrar pra VPC
+  custom (Fase 2+ se justificar).
+
+---
+
 ## Tags policy
 
 Padrão obrigatório (ADR-0008) em **todo recurso AWS criado**:
@@ -292,17 +398,23 @@ ManagedBy={manual|terraform|ansible}
 
 **Estado atual de conformidade** (espelho honesto, 2026-05-02):
 
-| Recurso                                  | Project | Environment | ManagedBy | Name                   | Status             |
-| ---------------------------------------- | ------- | ----------- | --------- | ---------------------- | ------------------ |
-| EIP `eipalloc-03c82731695e04b80`         | ✅      | ✅          | ✅        | ✅                     | **OK**             |
-| EC2 `i-072708190abd3d102`                | ❌      | ❌          | ❌        | ⚠️ legado              | **Gap**            |
-| Root EBS `vol-03f00b3758be2f0c8`         | ❌      | ❌          | ❌        | ❌                     | **Gap**            |
-| Security Group `sg-06f620dffedd9008f`    | ❌      | ❌          | ❌        | ❌ (`launch-wizard-2`) | **Gap**            |
-| IAM Role `EcommerceEC2SSMRole`           | ✅      | ❌          | ✅        | n/a                    | **Gap parcial**    |
-| Instance Profile `EcommerceEC2SSMRole`   | n/a     | n/a         | n/a       | n/a                    | (não suporta tags) |
-| AWS Budget `ecommerce-...-monthly-30usd` | n/a     | n/a         | n/a       | n/a                    | (não suporta tags) |
+| Recurso                                               | Project | Environment | ManagedBy | Name                   | Status             |
+| ----------------------------------------------------- | ------- | ----------- | --------- | ---------------------- | ------------------ |
+| EIP `eipalloc-03c82731695e04b80`                      | ✅      | ✅          | ✅        | ✅                     | **OK**             |
+| S3 audit bucket                                       | ✅      | ✅          | ✅        | ✅                     | **OK**             |
+| CloudTrail trail `ecommerce-...-management-trail`     | ✅      | ✅          | ✅        | ✅                     | **OK**             |
+| EC2 `i-072708190abd3d102`                             | ❌      | ❌          | ❌        | ⚠️ legado              | **Gap**            |
+| Root EBS `vol-03f00b3758be2f0c8`                      | ❌      | ❌          | ❌        | ❌                     | **Gap**            |
+| Security Group `sg-06f620dffedd9008f`                 | ❌      | ❌          | ❌        | ❌ (`launch-wizard-2`) | **Gap**            |
+| IAM Role `EcommerceEC2SSMRole`                        | ✅      | ❌          | ✅        | n/a                    | **Gap parcial**    |
+| Instance Profile `EcommerceEC2SSMRole`                | n/a     | n/a         | n/a       | n/a                    | (não suporta tags) |
+| AWS Budget `ecommerce-...-monthly-30usd`              | n/a     | n/a         | n/a       | n/a                    | (não suporta tags) |
+| AWS Config recorder/delivery channel/conformance pack | n/a     | n/a         | n/a       | n/a                    | (não suporta tags) |
 
-Gaps são tracked em **Follow-ups conhecidos** abaixo.
+Gaps são tracked em **Follow-ups conhecidos** abaixo. **Detecção automática
+desses gaps pela rule `required-tags-Project`** está ativa desde 2026-05-02
+(seção "Audit & Compliance" acima) — Config dashboard mostra NON_COMPLIANT
+em tempo quase real para os 4 recursos do projeto sem tags completas.
 
 ---
 
@@ -312,15 +424,15 @@ Lista honesta de divergências entre o estado real e a política/intenção
 declarada. **Nenhum é blocker para fechar P0-B4** — todos serão endereçados
 em PRs específicos antes ou durante P0-D1 (import OpenTofu).
 
-| #   | Item                                                                                                                  | Onde resolver                                                                                 | Severidade                                                                                                               |
-| --- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| 1   | EC2 sem tags `Project`/`Environment`/`ManagedBy`; tag `Name=loja-microsservicos` é legada do nome anterior do projeto | PR pré-D1: `aws ec2 create-tags`                                                              | baixa (cosmético + cleanup tooling)                                                                                      |
-| 2   | Security Group sem tags + nome `launch-wizard-2`                                                                      | PR pré-D1: `create-tags` (renomear SG exige recriar — adiar pra D1)                           | baixa                                                                                                                    |
-| 3   | Root EBS sem tags + **encryption-at-rest disabled**                                                                   | PR específico: snapshot → criar volume encrypted KMS → swap; ou encarar no recreate da Fase 2 | **média** — encryption-at-rest é defense in depth (brief §0.1); mitigação parcial: nada sensível em disco hoje (Phase 0) |
-| 4   | IAM Role sem tag `Environment`                                                                                        | PR pré-D1: `aws iam tag-role`                                                                 | baixa                                                                                                                    |
-| 5   | Permission set `AdministratorAccess` ainda broad                                                                      | ADR + PR quando primeiro deploy formal entrar                                                 | média (planejado)                                                                                                        |
-| 6   | Logging detalhado de sessões SSM (S3/CloudWatch)                                                                      | Grupo H ou tarefa específica                                                                  | baixa (compliance futuro)                                                                                                |
-| 7   | SG `launch-wizard-2` rename → algo descritivo (`ecommerce-ec2-sandbox-sg`)                                            | P0-D1 (recriar via `tofu`)                                                                    | baixa                                                                                                                    |
+| #   | Item                                                                                                                  | Onde resolver                                                                                 | Severidade                                                                                                               | Auto-detectado?                                                                                      |
+| --- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| 1   | EC2 sem tags `Project`/`Environment`/`ManagedBy`; tag `Name=loja-microsservicos` é legada do nome anterior do projeto | PR pré-D1: `aws ec2 create-tags`                                                              | baixa (cosmético + cleanup tooling)                                                                                      | ✅ Config rule `required-tags-Project`                                                               |
+| 2   | Security Group sem tags + nome `launch-wizard-2`                                                                      | PR pré-D1: `create-tags` (renomear SG exige recriar — adiar pra D1)                           | baixa                                                                                                                    | ✅ Config rule `required-tags-Project`                                                               |
+| 3   | Root EBS sem tags + **encryption-at-rest disabled**                                                                   | PR específico: snapshot → criar volume encrypted KMS → swap; ou encarar no recreate da Fase 2 | **média** — encryption-at-rest é defense in depth (brief §0.1); mitigação parcial: nada sensível em disco hoje (Phase 0) | ✅ tags via Config rule; encryption via conformance pack futuro (Operational-Best-Practices-for-EBS) |
+| 4   | IAM Role sem tag `Environment`                                                                                        | PR pré-D1: `aws iam tag-role`                                                                 | baixa                                                                                                                    | ⚠️ parcialmente — regra exige tag `Project` (presente); falta de `Environment` não é flaggada        |
+| 5   | Permission set `AdministratorAccess` ainda broad                                                                      | ADR + PR quando primeiro deploy formal entrar (P0-B6)                                         | média (planejado)                                                                                                        | ❌ não detectável por Config rule de tag                                                             |
+| 6   | Logging detalhado de sessões SSM (S3/CloudWatch)                                                                      | Grupo H ou tarefa específica                                                                  | baixa (compliance futuro)                                                                                                | n/a (não é um gap de drift; é feature ausente)                                                       |
+| 7   | SG `launch-wizard-2` rename → algo descritivo (`ecommerce-ec2-sandbox-sg`)                                            | P0-D1 (recriar via `tofu`)                                                                    | baixa                                                                                                                    | n/a (rename só via recreate)                                                                         |
 
 **Ordem sugerida:**
 
@@ -335,15 +447,17 @@ em PRs específicos antes ou durante P0-D1 (import OpenTofu).
 
 Baseline mensal com a configuração atual e **EC2 running 24/7**:
 
-| Item                                        | $/mês      |
-| ------------------------------------------- | ---------- |
-| EC2 t3.micro on-demand                      | ~$7.60     |
-| Root EBS 8 GiB gp3 (baseline)               | ~$0.64     |
-| EIP (associado e EC2 running)               | $0.00      |
-| SSM (Session Manager + Run Command)         | $0.00      |
-| CloudTrail (free tier de management events) | $0.00      |
-| Outbound traffic (estimativa Phase 0)       | <$0.50     |
-| **Total**                                   | **~$8.74** |
+| Item                                                  | $/mês       |
+| ----------------------------------------------------- | ----------- |
+| EC2 t3.micro on-demand                                | ~$7.60      |
+| Root EBS 8 GiB gp3 (baseline)                         | ~$0.64      |
+| EIP (associado e EC2 running)                         | $0.00       |
+| SSM (Session Manager + Run Command)                   | $0.00       |
+| CloudTrail management events (1º trail free)          | $0.00       |
+| AWS Config recording + 1 conformance pack + 1 rule    | ~$0.30-1.00 |
+| S3 audit bucket storage (cresce ~5-20 MB/mês inicial) | <$0.05      |
+| Outbound traffic (estimativa Phase 0)                 | <$0.50      |
+| **Total**                                             | **~$9-10**  |
 
 Com modelo ephemeral (EC2 stopped quando não dev — ~16h/dia):
 
@@ -383,9 +497,24 @@ IAM:
   EcommerceEC2SSMRole (Role)            → aws_iam_role.ec2_ssm
   EcommerceEC2SSMRole (InstanceProfile) → aws_iam_instance_profile.ec2_ssm
   AmazonSSMManagedInstanceCore (attach) → aws_iam_role_policy_attachment.ssm_core
+  AWSServiceRoleForConfig (service-linked) → não importar (gerenciado pela AWS)
 
 Governança:
   ecommerce-microsservicos-monthly-30usd → aws_budgets_budget.monthly_30usd
+
+Audit & Compliance:
+  ecommerce-microsservicos-audit-905418198749 (S3 bucket)         → aws_s3_bucket.audit
+                                                                    + aws_s3_bucket_versioning.audit
+                                                                    + aws_s3_bucket_server_side_encryption_configuration.audit
+                                                                    + aws_s3_bucket_public_access_block.audit
+                                                                    + aws_s3_bucket_lifecycle_configuration.audit
+                                                                    + aws_s3_bucket_policy.audit
+                                                                    + aws_s3_bucket_tagging (via tags do bucket)
+  ecommerce-microsservicos-management-trail (CloudTrail trail)    → aws_cloudtrail.management
+  default (Config recorder)                                       → aws_config_configuration_recorder.default
+  default (Config delivery channel)                               → aws_config_delivery_channel.default
+  ecommerce-OBP-EC2 (Conformance pack)                            → aws_config_conformance_pack.ec2_best_practices
+  required-tags-Project (Config rule)                             → aws_config_config_rule.required_tags_project
 ```
 
 Identity Center user/permission set ficam **fora** do state OpenTofu por
@@ -411,15 +540,20 @@ manual quando tarefa específica avaliar).
 
 - ADR-0008 — pivot Hostinger → AWS EC2 efêmera (origem destes recursos)
 - ADR-0009 — substituir SSH por SSM Session Manager (origem do ingress vazio)
+- ADR-0010 — AWS como eixo deliberado (motivação de fundo do P0-B5/B6)
+- ADR-0011 — Audit baseline (decisões + alternativas da seção "Audit & Compliance")
 - ADR-0006 — repo público (motiva rigor de tags + Budget + IAM scoping)
+- `docs/runbooks/aws-audit-baseline.md` — runbook reproduzível do que está em "Audit & Compliance"
 - `docs/infra/cloudflare.md` — DNS apontado para o EIP daqui
-- `docs/backlog/phase-0.md` P0-B4 — DoD original e notas de execução
-- PROJECT_BRIEF.md §0.1 (defesa em profundidade), §5.4 (caminho de execução
-  com adendo apontando pra ADR-0008), §5.5 (IaC Ansible + OpenTofu,
-  expandido pra AWS desde o pivot)
+- `docs/backlog/phase-0.md` P0-B4 e P0-B5 — DoD originais e notas de execução
+- PROJECT_BRIEF.md §0.1 (defesa em profundidade), §0.2 (AWS como eixo deliberado),
+  §5.4 (caminho de execução com adendo apontando pra ADR-0008), §5.5 (IaC
+  Ansible + OpenTofu, expandido pra AWS desde o pivot)
 - AWS docs:
   - [EC2 instance types](https://aws.amazon.com/ec2/instance-types/)
   - [EBS volume types](https://docs.aws.amazon.com/ebs/latest/userguide/ebs-volume-types.html)
   - [SSM Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html)
   - [AWS Budgets](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)
   - [IAM Identity Center](https://docs.aws.amazon.com/singlesignon/)
+  - [CloudTrail security best practices](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/best-practices-security.html)
+  - [AWS Config conformance packs](https://docs.aws.amazon.com/config/latest/developerguide/conformance-packs.html)

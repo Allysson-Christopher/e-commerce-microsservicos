@@ -203,6 +203,36 @@ Sem dependências externas — pode iniciar imediatamente.
   - **Sem ADR para "gp3 vs gp2":** decisão default pequena demais, registrada como nota em `aws-specs.md` ("Política default para volumes novos"). ADR nasce em P0-C5 se a escolha real trouxer surpresa (io2, múltiplos volumes, snapshots não-triviais).
   - **Gaps de conformidade documentados honestamente:** EC2/SG/Root EBS sem tags policy completa, root EBS sem encryption-at-rest, SG nome `launch-wizard-2` legado. Itens listados em `aws-specs.md` "Follow-ups conhecidos" como dívida explícita — endereçáveis em PRs específicos antes ou durante P0-D1, **não bloqueiam o fechamento desta tarefa**.
 
+### P0-B5 — CloudTrail organization trail + AWS Config baseline (M)
+
+- **DoD:**
+  - CloudTrail trail multi-region habilitado (gerenciamento + data events básicos), output em S3 bucket dedicado com lifecycle policy (90 dias hot → Glacier ou expirar)
+  - S3 bucket cifrado com SSE-S3 (ou KMS), bucket policy negando deleção/modificação direta de objetos
+  - AWS Config habilitado na home region com **conformance pack `Operational-Best-Practices-for-EC2`** (ou similar) ativo
+  - Rule mínima `required-tags` configurada com chave `Project` (alerta drift dos recursos `ManagedBy=manual` que ainda não estão conformes — referência em `aws-specs.md` "Follow-ups conhecidos")
+  - Documentação em `docs/runbooks/aws-audit-baseline.md` (procedimento de habilitação reproduzível) + atualização de `docs/infra/aws-specs.md` com seção "Audit & Compliance"
+- **Dependências:** P0-B4
+- **Notas:**
+  - Materializa **ADR-0010** (AWS como eixo deliberado) com baixo custo: CloudTrail management events e Config base são **gratuitos**; data events e regras avançadas são pay-per-use mas controlados pelo Budget existente
+  - Resolve parcialmente follow-up #1, #2, #4 do `aws-specs.md` (drift de tags fica visível no Config dashboard)
+  - Pré-requisito futuro pra qualquer ADR de compliance (LGPD/SOC 2) — audit trail centralizado existe sem retrabalho
+
+### P0-B6 — Escopar permission set IAM Identity Center (M)
+
+- **DoD:**
+  - Novo permission set `EcommerceProjectAdmin` (ou similar) substitui o uso default de `AdministratorAccess` para operação cotidiana
+  - Policy do permission set escopada a:
+    - Recursos com tag `Project=ecommerce-microsservicos` (via `aws:ResourceTag/Project` em condition); OU
+    - Lista enumerada de ARNs/recursos/serviços (EC2, EBS, EIP, SG, IAM Role específico, S3 buckets do projeto, CloudTrail, Config, Budgets) — escolha registrada em ADR específica peer desta tarefa
+  - `AdministratorAccess` permanece atribuído como **break-glass** (uso emergencial, com alarme via CloudTrail Insights ou EventBridge)
+  - Validação: `aws sts get-caller-identity` continua funcionando; uma operação fora do escopo (ex.: `aws s3 ls` em bucket sem tag) retorna `AccessDenied`
+  - Atualização de `docs/infra/aws-specs.md` seção "IAM Identity Center" com o novo permission set + procedimento de break-glass
+- **Dependências:** P0-B4 (recursos a escopar precisam estar inventariados); ideal **depois de P0-B5** (CloudTrail captura primeira ação fora-do-escopo se houver)
+- **Notas:**
+  - Resolve follow-up #5 do `aws-specs.md` (permissão broad)
+  - Materializa **ADR-0010** com exercício de IAM granular puro (least privilege, brief §0.1)
+  - **ADR específica nasce no PR desta tarefa** — escolha entre tag-based vs ARN-enumerated tem trade-offs (tag-based mais flexível pra recursos novos, ARN exige update toda vez que recurso novo entra; tag-based depende de tags consistentes — daí a ordem com P0-B5 ajuda)
+
 ---
 
 ## Grupo C — Bootstrap da VPS via Ansible

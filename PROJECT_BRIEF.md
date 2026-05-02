@@ -39,6 +39,10 @@ Decisão explícita do usuário: segurança é **prioridade de implementação E
 
 **Cada decisão técnica futura deste documento deve ser revisitada com a lente de segurança.** Onde já houver decisões anteriores, complementaremos com camadas de segurança quando atacarmos cada subsistema.
 
+### 0.2 AWS como eixo deliberado de aprendizado
+
+> **Adendo (2026-05-02) — ver [ADR-0010](docs/adr/ADR-0010-aws-como-eixo-deliberado-de-aprendizado.md):** AWS deixa de ser substrato (escolha tomada em ADR-0008) e passa a ser **eixo cross-cutting de aprendizado**, peer da segurança. Componentes self-hosted entregues na Phase 1 ganham, na Phase 2, revisão deliberada para decidir migração ao equivalente AWS-native (RDS, ElastiCache, Secrets Manager, X-Ray, SES) via ADRs específicas. Não substitui — adiciona uma camada de aprendizado (operar Postgres puro **e** RDS, Redis puro **e** ElastiCache, Tempo **e** X-Ray, etc). Em decisões cloud-relacionadas, sempre apresentar a variante AWS-native como alternativa explícita, mesmo que a decisão acabe sendo "manter self-hosted". Tabela de pareamento + critério "não migrar" vivem na ADR-0010.
+
 ---
 
 ## 1. Visão & Escopo
@@ -587,6 +591,8 @@ chore(deps): bump deps globais (raro, sem scope = afeta tudo)
 
 > **⚠️ Atualização (2026-05-01) — ver [ADR-0008](docs/adr/ADR-0008-migrar-de-vps-hostinger-para-aws-ec2-efemera.md) e [ADR-0009](docs/adr/ADR-0009-substituir-ssh-por-aws-ssm-session-manager.md):** durante a execução da Fase 0 a plataforma de execução foi migrada desta seção (VPS Hostinger única) para **AWS EC2 efêmera em `us-east-1`**, sob modelo "spin-up para desenvolver / terminate quando não precisar". Acesso administrativo via SSM Session Manager (zero portas inbound; sem SSH público). Conceitos didáticos da seção (capacity planning, networks isoladas, Traefik compartilhado, deploy via API, backups externos) **continuam válidos** — só muda o substrato (EC2 + EBS + Security Groups no lugar de VPS + ufw + IP fixo). A descrição original abaixo é preservada como registro de planejamento.
 
+> **⚠️ Atualização (2026-05-02) — ver [ADR-0010](docs/adr/ADR-0010-aws-como-eixo-deliberado-de-aprendizado.md):** Phase 1 entrega Compose self-hosted; Phase 2 abre revisão por componente — k3s self-hosted vs EKS/Fargate fica como **caso a caso** (ADR específica) considerando custo do EKS control plane ($73/mês fixo) e o aprendizado de Fargate para jobs assíncronos.
+
 **Escolha (versão original — superseded por ADR-0008):** Caminho faseado em VPS única da Hostinger (recomendação A)
 
 **Contexto:**
@@ -821,6 +827,8 @@ infra/
 ### 5.7 Gestão de secrets
 **Escolha:** Híbrido faseado (opção 7)
 
+> **⚠️ Adendo (2026-05-02) — ver [ADR-0010](docs/adr/ADR-0010-aws-como-eixo-deliberado-de-aprendizado.md):** o caminho Ansible Vault (Fase 1) → Sealed Secrets / ESO (Fase 2) descrito abaixo ganha um par AWS-native deliberado: **AWS Secrets Manager** ou **AWS Systems Manager Parameter Store** entram como candidatos de Phase 2 (decisão default: Migrar — exercício direto de IAM granular + KMS). ADR específica nasce no PR da migração.
+
 **Princípios em todas as fases:**
 - Nunca commitar secret em texto plano
 - Nunca logar secret
@@ -883,6 +891,8 @@ infra/
 
 ### 6.1 Stack de observabilidade
 **Escolha:** Grafana LGTM + OpenTelemetry como padrão de instrumentação (opções 2 + 3)
+
+> **⚠️ Adendo (2026-05-02) — ver [ADR-0010](docs/adr/ADR-0010-aws-como-eixo-deliberado-de-aprendizado.md):** Phase 1 entrega LGTM stack self-hosted como descrito; Phase 2 revisita pareamentos AWS-native: **Tempo → X-Ray** (decisão default: Migrar — integra com Lambda/API Gateway/RDS), **Prometheus → CloudWatch Metrics** e **Loki → CloudWatch Logs** (caso a caso, sensíveis a cardinalidade e volume). Tabela completa + critérios na ADR-0010.
 
 **Stack:**
 - **Métricas:** Prometheus (scrape) + Grafana (dashboards)
@@ -1095,6 +1105,8 @@ infra/
 
 ### 7.1 Identidade, autenticação e autorização
 **Escolha:** Híbrido com Keycloak + serviços próprios (opção 5)
+
+> **⚠️ Adendo (2026-05-02) — ver [ADR-0010](docs/adr/ADR-0010-aws-como-eixo-deliberado-de-aprendizado.md):** Phase 1 entrega Keycloak self-hosted como descrito; Phase 2 abre **Keycloak vs Cognito** como caso a caso (decisão default: Caso a caso) — Cognito tem limitações para B2C de moda (custom flows, branding) que podem inviabilizar substituição direta, mas é o caminho AWS-native natural caso a operação do Keycloak vire fricção em RAM/JVM.
 
 **Identidade do usuário e do staff (cliente final + admin):**
 - **Keycloak** com 2 realms isolados:

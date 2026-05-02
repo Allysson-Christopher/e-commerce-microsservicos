@@ -35,31 +35,87 @@ futura se justificar.
 
 ## IAM Identity Center (SSO)
 
-| Campo                 | Valor                                                          |
-| --------------------- | -------------------------------------------------------------- |
-| **Usuário**           | `allysson`                                                     |
-| **MFA**               | TOTP (Bitwarden / Aegis), enforced                             |
-| **Permission set**    | `AdministratorAccess` (managed AWS, broad — escopar no futuro) |
-| **Token lifetime**    | 8h via STS                                                     |
-| **Reserved SSO Role** | `AWSReservedSSO_AdministratorAccess_5bf24a712652a374`          |
+| Campo                 | Valor                                                      |
+| --------------------- | ---------------------------------------------------------- |
+| **Instance ARN**      | `arn:aws:sso:::instance/ssoins-72230cf4411d9bf7`           |
+| **Identity Store ID** | `d-9067e0b68e`                                             |
+| **Usuário**           | `allysson` (UserId `442824d8-4071-701c-c764-3520d57bd5f5`) |
+| **MFA**               | TOTP (Bitwarden / Aegis), enforced                         |
+| **Token lifetime**    | 8h via STS                                                 |
+| **SSO start URL**     | `https://ssoins-72230cf4411d9bf7.portal.us-east-1.app.aws` |
 
-**Login:**
+### Permission sets
+
+| Permission set                                             | Uso                                          | Session duration | Status    |
+| ---------------------------------------------------------- | -------------------------------------------- | ---------------- | --------- |
+| **`EcommerceProjectAdmin`** (default cotidiano — ADR-0012) | Operação normal do projeto                   | 8h               | Atribuído |
+| `AdministratorAccess` (managed AWS, broad — break-glass)   | Emergência operacional / fluxos não cobertos | 8h               | Atribuído |
+
+#### `EcommerceProjectAdmin` — default cotidiano
+
+| Campo                  | Valor                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Permission set ARN** | `arn:aws:sso:::permissionSet/ssoins-72230cf4411d9bf7/ps-8b8093cc7c6e9d61`                                                            |
+| **Reserved SSO Role**  | `AWSReservedSSO_EcommerceProjectAdmin_343d4e974f8bbd83`                                                                              |
+| **Reserved Role ARN**  | `arn:aws:iam::905418198749:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_EcommerceProjectAdmin_343d4e974f8bbd83`                |
+| **Policy**             | Inline (~14 KB), híbrida — tag-based + ARN-enumerated + `aws:RequestTag` enforcement + Deny defensivo. Ver ADR-0012 e runbook abaixo |
+| **Tags**               | `Project`, `Environment=sandbox`, `ManagedBy=manual`                                                                                 |
+| **Criado em**          | 2026-05-02 20:42 UTC                                                                                                                 |
+
+**Login default:**
+
+```bash
+aws sso login --profile EcommerceProjectAdmin-905418198749
+export AWS_PROFILE=EcommerceProjectAdmin-905418198749
+```
+
+**Cobertura conhecida** (validada no PR de P0-B6):
+
+- ✅ Leitura ampla — `*:Describe*` / `*:List*` / `*:Get*` em EC2/S3/IAM/CloudTrail/Config/Budgets/SSM/CloudWatch/Logs
+- ✅ SSM Session Manager (`StartSession` / `TerminateSession` / `SendCommand`) — sem condition de tag (ver "Dívidas conhecidas" abaixo)
+- ✅ Mutações em recursos com tag `Project=ecommerce-microsservicos` (EIP, IAM Role `EcommerceEC2SSMRole`, audit bucket, trail)
+- ✅ Mutações em recursos enumerados por ARN (audit bucket, Config recorder/pack/rule, Budget do projeto)
+- ✅ `Create*` exigindo `aws:RequestTag/Project=ecommerce-microsservicos`
+- ✅ `ec2:CreateTags`/`DeleteTags` em recursos do projeto que estão em **gap** (EC2, Root EBS, SG, NIC) — pra fechar follow-ups #1/#2/#3 sem voltar pro break-glass
+- ❌ **AccessDenied esperado** em mutações sobre recursos legacy fora do projeto (7 buckets S3 legacy + ACM certs + default VPC SGs) — defesa em camadas
+- ❌ **AccessDenied explícito (Deny)** em `iam:CreateUser/DeleteUser/Create*AccessKey`, `iam:DeleteRole`, `organizations:*`, `account:*`, `aws-portal:Modify*`, `sso:Delete*PermissionSet/Update*`, `kms:DisableKey/ScheduleKeyDeletion`, `s3:DeleteBucket/Object` no audit bucket, `cloudtrail:DeleteTrail/StopLogging` no trail do projeto
+
+**Dívidas conhecidas** (registradas com a policy):
+
+- **Gap #1 (EC2 sem tag `Project`):** `ec2:StopInstances`/`StartInstances`/`RebootInstances`/`TerminateInstances` na EC2 retornam `AccessDenied` até a tag ser aplicada. Mitigação: a própria policy concede `ec2:CreateTags` ARN-enumerado pra EC2/Root EBS/SG/NIC — backfill de tags pode ser feito pelo próprio `EcommerceProjectAdmin` em PR pré-D1, sem break-glass.
+- **SSM `StartSession` sem condition:** EC2 ainda no gap #1; aplicar tag-based em SSM trancaria admin access (conflito direto com ADR-0009). Aceito até gap #1 fechar — ADR de revisão depois reaperta.
+- **Recursos `Create*` "untaggable" no `RunInstances`** (subnet, security-group existente, key-pair, launch-template, image, snapshot) ficam em statement separado sem `aws:RequestTag` — necessário pelo modelo da API EC2 que distingue ARNs taggable vs não-taggable em RunInstances.
+
+#### `AdministratorAccess` — break-glass
+
+Mantido como **rede de segurança** (solo dev sem segundo humano de reserva). Uso esperado: emergência operacional onde `EcommerceProjectAdmin` recusa fluxo crítico, ou tarefa fora-do-escopo (criar permission set novo, mexer em recursos pessoais legacy).
+
+| Campo                 | Valor                                                                                                                                                                                                       |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Reserved SSO Role** | `AWSReservedSSO_AdministratorAccess_5bf24a712652a374`                                                                                                                                                       |
+| **Status**            | Atribuído (não removido)                                                                                                                                                                                    |
+| **Auditoria**         | CloudTrail registra todo `AssumeRoleWithSAML` com sourceIPAddress + principal — uso indevido fica visível em revisão reativa. Alarm proativo (EventBridge / Slack notify) é follow-up de Grupo H ou Phase 4 |
+
+**Login break-glass:**
 
 ```bash
 aws sso login --profile AdministratorAccess-905418198749
+export AWS_PROFILE=AdministratorAccess-905418198749
 ```
 
-Quando o token expira, qualquer `aws ...` retorna `Token has expired and
-refresh failed` — basta re-rodar o comando acima.
+**Procedimento esperado quando usar break-glass:**
+
+1. Constatar que `EcommerceProjectAdmin` recusa fluxo legítimo (e não é caso de bug óbvio na policy).
+2. Trocar profile e fazer só **a operação mínima** que destrava.
+3. Voltar pro `EcommerceProjectAdmin` imediatamente após.
+4. Abrir issue ou TODO no `aws-specs.md` "Follow-ups conhecidos" pra ajustar a policy se o caso for recorrente.
 
 **Princípios em uso:**
 
-- **Sem credenciais long-lived** — humano usa SSO (8h), agent usa Instance
-  Profile (rotação automática via STS).
-- **MFA obrigatório** no fator humano.
-- **Permissão broad hoje** (escolha consciente para Phase 0); plano de
-  escopar para `ssm:StartSession` + `ec2:Describe*` + recursos com tag
-  `Project=ecommerce-microsservicos` quando o cenário de operação exigir.
+- **Sem credenciais long-lived** — humano usa SSO (8h), agent usa Instance Profile (rotação automática via STS).
+- **MFA obrigatório** no fator humano (enforced no nível do diretório).
+- **Least privilege real, não broad** — `EcommerceProjectAdmin` cobre 100% do fluxo Phase 0 cotidiano; `AdministratorAccess` segue como rede de segurança auditada.
+- **Disciplina de tag enforced no IAM** — `aws:RequestTag` em `Create*` faz a AWS recusar criação de recurso novo sem `Project=ecommerce-microsservicos`.
 
 ---
 
@@ -430,7 +486,7 @@ em PRs específicos antes ou durante P0-D1 (import OpenTofu).
 | 2   | Security Group sem tags + nome `launch-wizard-2`                                                                      | PR pré-D1: `create-tags` (renomear SG exige recriar — adiar pra D1)                           | baixa                                                                                                                    | ✅ Config rule `required-tags-Project`                                                               |
 | 3   | Root EBS sem tags + **encryption-at-rest disabled**                                                                   | PR específico: snapshot → criar volume encrypted KMS → swap; ou encarar no recreate da Fase 2 | **média** — encryption-at-rest é defense in depth (brief §0.1); mitigação parcial: nada sensível em disco hoje (Phase 0) | ✅ tags via Config rule; encryption via conformance pack futuro (Operational-Best-Practices-for-EBS) |
 | 4   | IAM Role sem tag `Environment`                                                                                        | PR pré-D1: `aws iam tag-role`                                                                 | baixa                                                                                                                    | ⚠️ parcialmente — regra exige tag `Project` (presente); falta de `Environment` não é flaggada        |
-| 5   | Permission set `AdministratorAccess` ainda broad                                                                      | ADR + PR quando primeiro deploy formal entrar (P0-B6)                                         | média (planejado)                                                                                                        | ❌ não detectável por Config rule de tag                                                             |
+| 5   | ~~Permission set `AdministratorAccess` ainda broad~~ **RESOLVIDO em 2026-05-02 via P0-B6 / ADR-0012**                 | n/a (fechado)                                                                                 | n/a                                                                                                                      | n/a                                                                                                  |
 | 6   | Logging detalhado de sessões SSM (S3/CloudWatch)                                                                      | Grupo H ou tarefa específica                                                                  | baixa (compliance futuro)                                                                                                | n/a (não é um gap de drift; é feature ausente)                                                       |
 | 7   | SG `launch-wizard-2` rename → algo descritivo (`ecommerce-ec2-sandbox-sg`)                                            | P0-D1 (recriar via `tofu`)                                                                    | baixa                                                                                                                    | n/a (rename só via recreate)                                                                         |
 
@@ -519,7 +575,11 @@ Audit & Compliance:
 
 Identity Center user/permission set ficam **fora** do state OpenTofu por
 enquanto (recurso humano, raramente muda — registrar como datasource ou
-manual quando tarefa específica avaliar).
+manual quando tarefa específica avaliar). Inclui:
+
+- Permission set `EcommerceProjectAdmin` + inline policy
+- Permission set `AdministratorAccess` (managed AWS, atribuído como break-glass)
+- Account assignments dos dois permission sets ao usuário `allysson`
 
 ---
 
@@ -542,8 +602,10 @@ manual quando tarefa específica avaliar).
 - ADR-0009 — substituir SSH por SSM Session Manager (origem do ingress vazio)
 - ADR-0010 — AWS como eixo deliberado (motivação de fundo do P0-B5/B6)
 - ADR-0011 — Audit baseline (decisões + alternativas da seção "Audit & Compliance")
+- ADR-0012 — Permission set `EcommerceProjectAdmin` (decisões + alternativas da seção "IAM Identity Center")
 - ADR-0006 — repo público (motiva rigor de tags + Budget + IAM scoping)
 - `docs/runbooks/aws-audit-baseline.md` — runbook reproduzível do que está em "Audit & Compliance"
+- `docs/runbooks/aws-permission-set-management.md` — runbook reproduzível do `EcommerceProjectAdmin`
 - `docs/infra/cloudflare.md` — DNS apontado para o EIP daqui
 - `docs/backlog/phase-0.md` P0-B4 e P0-B5 — DoD originais e notas de execução
 - PROJECT_BRIEF.md §0.1 (defesa em profundidade), §0.2 (AWS como eixo deliberado),
